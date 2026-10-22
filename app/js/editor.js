@@ -317,7 +317,7 @@ var Editor = (function () {
 
   /* 前缀要不要露出来：只有标题的前缀会藏，且光标落在行首（正文最前面）时才露。
    * 光标在正文里时藏起来 —— 这时看到的就是渲染态，`## ` 不占视觉位置；
-   * 一按左键 / 点行首就现形，删掉它标题就变回正文（和 Typora 一个手感）。 */
+   * 一按左键 / 点行首就现形，删掉它标题就变回正文（保持同一手感）。 */
   function wantPrefix(raw, caret) {
     if (!window.Live) return false;
     if (Live.prefixKind(raw) !== 'heading') return false;

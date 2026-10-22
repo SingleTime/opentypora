@@ -14,7 +14,7 @@
   var CUR_DEFS = {};      // 当前渲染文档的引用式链接定义表（renderBlock 每块刷新）
   var CODE_LINENO = false;  // 代码块行号（偏好项，Editor.setTyping 打开）
   // 严格模式：只认「基础 Markdown」，关掉高亮 / 上下标 / Emoji / [[wiki]] / Callout
-  // 这类扩展语法（表格、脚注、任务列表、数学、[TOC] 保留 —— Typora 自己也当基础）。
+  // 这类扩展语法（表格、脚注、任务列表、数学、[TOC] 保留 —— 这些已是通用基础设施）。
   var STRICT = false;
   var EMOJI_NAMES = null;   // emojiNames() 的缓存（表不变，算一次就够）
   var ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -50,10 +50,10 @@
     return m;
   }
   var RE_ATX = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
-  // 容错档：`#` 后不强制空格（Typora 关闭严格模式时的行为）。
+  // 容错档：`#` 后不强制空格（关闭严格模式时的行为）。
   // (?!#) 挡住 `#######x` 这种七个以上 # 的行——CommonMark 里它不是标题。
   var RE_ATX_LOOSE = /^ {0,3}(#{1,6})(?!#)[ \t]*(.*?)[ \t]*$/;
-  // 严格模式按 Typora 官方文档：标题必须在 # 后放空白（###Header 不算标题）；
+  // 严格模式：标题必须在 # 后放空白（###Header 不算标题）；
   // 关闭严格模式时容错（###Header 也是标题）。两档都返回同样的分组结构。
   function atxOf(text) {
     return (STRICT ? RE_ATX : RE_ATX_LOOSE).exec(text);
@@ -65,7 +65,7 @@
   var RE_SETEQ2 = /^ {0,3}-+[ \t]*$/;
   var RE_TABLE_SEP = /^ {0,3}\|?[ \t]*:?-{1,}:?[ \t]*(\|[ \t]*:?-{1,}:?[ \t]*)*\|?[ \t]*$/;
   var RE_MATH_FENCE = /^ {0,3}\$\$[ \t]*$/;
-  // 单行写法 $$E=mc^2$$（Typora 两种都认；这里要求整行只有这一条公式）
+  // 单行写法 $$E=mc^2$$（两种写法都认；这里要求整行只有这一条公式）
   var RE_MATH_ONELINE = /^ {0,3}\$\$(?!\s*$)([\s\S]*?)\$\$[ \t]*$/;
   // 只认「完整标签」开头的 HTML 块，避免把 <https://x.com> 误判为 HTML
   var RE_HTML = /^ {0,3}(?:<[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*\s*>|<!--|<!\[CDATA\[|<\?)/;
@@ -156,7 +156,7 @@
   };
   var RE_EMOJI = /^:([a-zA-Z0-9_+\-]+):/;
 
-  // 语言选择器（Typora 的列表更长，这里保留写作里最常出现的）
+  // 语言选择器（只保留写作里最常出现的）
   var CODE_LANGS = [
     ['text', 'Plain Text'], ['bash', 'Bash'], ['c', 'C'], ['cpp', 'C++'], ['csharp', 'C#'],
     ['css', 'CSS'], ['diff', 'Diff'], ['flow', 'Flowchart'],
@@ -296,7 +296,7 @@
   }
 
   /* ---------------------------------------------------------- 图片
-   * 支持 Typora 的尺寸写法：`![alt](a.png =300x200)` / `=300x` / `=x200`，
+   * 支持图片尺寸写法：`![alt](a.png =300x200)` / `=300x` / `=x200`，
    * 以及 `<带 空格 的路径.png>` 和 "title"。用扫描而不是一条大正则：
    * 路径里可能出现括号（转义），正则很容易在这里截断。
    */
@@ -596,7 +596,7 @@
           push('<a data-s="' + (base + i) + '" href="' + esc(am[1]) + '">' + esc(am[1]) + '</a>');
           i += am[0].length; continue;
         }
-        // 行内 HTML：放行排版标签，内容继续按 Markdown 解析（Typora 行为）
+        // 行内 HTML：放行排版标签，内容继续按 Markdown 解析
         var it = readInlineTag(src, i);
         if (it) {
           if (it.close) { i += it.raw.length; continue; }   // 孤立的闭合标签，丢掉
@@ -1338,8 +1338,8 @@
 
   /* ---------------------------------------------------------- 列表树 */
   // 列表项的内容列：缩进 + 标记宽度 + 标记后至少一个空白。
-  // Typora 严格模式的第二条规则就落在这里——列表项里新开的段落/子列表必须
-  // 缩进到这一列，否则不算同一项（见 support.typora.io/Strict-Mode）。
+  // 严格模式的第二条规则就落在这里——列表项里新开的段落/子列表必须
+  // 缩进到这一列，否则不算同一项。
   function colOf(item) { return item.indent + (item.marker ? item.marker.length + 1 : 0); }
 
   function parseListTree(lines, i) {
@@ -1543,7 +1543,7 @@
         continue;
       }
 
-      // 引用式链接定义行：本身不渲染（Typora 同样隐藏），但保留在块模型里以便无损序列化
+      // 引用式链接定义行：本身不渲染，但保留在块模型里以便无损序列化
       var ld = RE_LINKDEF.exec(text);
       if (ld) {
         blocks.push({
@@ -1746,7 +1746,7 @@
         return { cls: 'list' + (isTask ? ' task-list' : ''), html: listHTML(b.items, base, b.items.length ? b.items[0].ordered : false) };
       }
       case 'html':
-        // 原样渲染成真 HTML（Typora 行为）；点一下整块切回 textarea 源码态。
+        // 原样渲染成真 HTML；点一下整块切回 textarea 源码态。
         // html-body 里没有 data-s，所以点击一律落到块首，不会算出奇怪的偏移。
         return { cls: 'html', html: '<div class="html-body">' + balanceHTML(cleanHTML(b.raw)) + '</div>' };
       default:

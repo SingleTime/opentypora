@@ -1,16 +1,12 @@
 # OpenTypora
 
-> 原名「Typora（自研克隆版）」，为避免与商业软件重名改成 **OpenTypora**。
-> 功能目标没变：对齐 Typora 1.14 的行为，front matter 里的 `typora-*` 键
-> （`typora-copy-images-to` / `typora-root-url`）保持兼容 —— 那些是文档格式约定，
-> 改了就不认别人的文档了。
+> macOS 单平台：AppKit + WKWebView 外壳，前端纯 HTML/CSS/JS，不依赖 npm。
+> 外部标识：`OpenTypora.app`（可执行文件 `Contents/MacOS/OpenTypora`）、
+> bundle id `local.fw.opentypora`、命令行 `opentypora`、用户数据目录
+> `~/Library/Application Support/OpenTypora`。
 >
-> 改名涉及的外部标识：bundle id `local.fw.opentypora`、可执行文件
-> `OpenTypora.app/Contents/MacOS/OpenTypora`、命令行 `opentypora`、
-> 窗口标题与菜单栏都叫 OpenTypora。同一个数据目录里的旧键会在首启改名：
-> `localStorage` 中 `typora.*` 的偏好与会话搬到 `opentypora.*`（目标键已有值不覆盖，
-> 旧键随即删除）。目录只用自己的——用户主题目录固定是
-> `~/Library/Application Support/OpenTypora/themes`，不读也不写真 Typora 的目录。
+> 兼容社区通行的 front matter 键 `typora-copy-images-to` 与 `typora-root-url`
+>（决定图片落盘目录与正文引用的相对基准）—— 别的编辑器写的文档拿过来照样认。
 
 从零实现的 Markdown 编辑器：块级所见即所得（WYSIWYG）、分栏「边写边看」、无损序列化、
 原生文件读写、多标签页、macOS 本地翻译、KaTeX 公式、Mermaid 图表、工作区搜索、
@@ -169,7 +165,7 @@ opentypora/
 │   ├── native-reuse.swift 原生会话复用 / 同语言短路验证（真实翻译）
 │   └── shot.swift        离屏截图工具（自检 UI 用）
 ├── build.sh              一键构建：图标 → 编译 → 组装 bundle → ad-hoc 签名
-└── docs/                 验证截图 + exports/（README 导出的 docx / epub / tex 样例）
+└── docs/                  spec.md（功能规格与验证记录）+ 验证截图 + exports/（README 导出的 docx / epub / tex 样例）
 ```
 
 ## 构建与安装
@@ -187,7 +183,7 @@ cp -R build/OpenTypora.app /Applications/
 跑测试：
 
 ```bash
-node test/runall.js          # 57 个套件，3318 项全绿；DOM 套件需要 build/shot
+node test/runall.js          # 57 个套件，3316 项全绿；DOM 套件需要 build/shot
 ```
 
 ## 核心设计
@@ -205,10 +201,10 @@ node test/runall.js          # 57 个套件，3318 项全绿；DOM 套件需要 
 - 标题（ATX/Setext）、粗斜体、删除线、`==高亮==`、行内代码、链接、图片、
   引用（嵌套）、列表（嵌套/有序/任务）、表格、代码围栏（自带高亮器，
   支持 js/ts/py/java/go/rust/sql/bash/json/yaml/css/html）、YAML front matter、水平线
-- **扩展语法**（与 Typora 对齐的那批）：
+- **扩展语法**（GFM 之外的常用方言）：
   - 引用式链接 `[a][id]` / `[a][]` / `[a]` 与引用式图片 `![a][id]`；`[id]: url "title"`
     定义行作为隐藏块保留在源码里（序列化仍然字节无损），方向键跨块时自动跳过
-  - 裸 URL 与 `www.` 自动成链；尾部标点、成对括号、中英文混排都按 Typora 的边界处理，
+  - 裸 URL 与 `www.` 自动成链；尾部标点、成对括号、中英文混排都按中文排版边界处理，
     不会把句号或中文标点吃进 `href`
   - 上标 `X^2^`、下标 `H~2~O`、下划线 `<u>`；docx 走 `vertAlign` / `<w:u>`，
     LaTeX 走 `\textsuperscript` / `\textsubscript` / `\underline`
@@ -251,7 +247,7 @@ node test/runall.js          # 57 个套件，3318 项全绿；DOM 套件需要 
   `=WxH` 可以和 `"title"` 共存。渲染、docx（EMU 换算）、ePub（`width`/`height`
   属性）、LaTeX（像素 × 0.75 → pt）四处同一套换算，宽度仍受版心封顶
 - **HTML 块原样渲染**：`<div>` / `<table>` / `<details>` / `<svg>` / `<style>` 这类整块
-  HTML 直接按 HTML 渲染（Typora 行为），点一下整块切回源码编辑
+  HTML 直接按 HTML 渲染，点一下整块切回源码编辑
   - 判块只认两件事：是不是容器标签、有没有配对闭合 —— `<div>…空行…</div>` 不会被
     空行切成互不相干的三块；找不到闭合就退回「按空行截断」，不会把后文全吞掉
   - `<script>` 与 `onclick` 一类事件属性渲染时剔除（文档不该能操作编辑器自己）
@@ -620,7 +616,7 @@ opentypora -v               # 版本（读 Info.plist）
 一条命令跑全部（纯 Node 套件直接跑，harness 套件自动交给 `build/shot` 取 `__report`）：
 
 ```bash
-node test/runall.js            # 合计 3318/3318（57 个套件）
+node test/runall.js            # 合计 3316/3316（57 个套件）
 node test/runall.js table math # 只跑指定套件
 ```
 
@@ -876,14 +872,8 @@ node test/runall.js table math # 只跑指定套件
 
 ## 已知限制
 
-- 改名（Typora → OpenTypora）不会自动清理旧安装：`/Applications/Typora.app` 会一直躺在
-  原处，bundle id 不同所以两个能并存；不要旧版就自己拖进废纸篓。两者**互不读取**
-  对方的数据 —— OpenTypora 只用 `~/Library/Application Support/OpenTypora/themes`，
-  老的 `.../Typora/themes` 里的主题不会自动搬过来（自己 `cp *.css` 过去即可）。
-- `typora.*` → `opentypora.*` 的自动改名**只在同一个 WKWebView 数据目录内生效**。
-  bundle id 一变，数据目录也跟着变（`~/Library/WebKit/local.fw.opentypora` vs
-  `local.fw.typora`），旧目录里的偏好与最近文件不会自己接上；要留就手动把
-  `<旧目录>/.../LocalStorage/localstorage.sqlite3` 里 `typora.*` 那几行抄进新库。
+- 用户主题目录固定是 `~/Library/Application Support/OpenTypora/themes`；其它编辑器的
+  主题 CSS 不会自动接上，要自己 `cp *.css` 过去（然后重启）。
 - wiki 链接不做**改名跟踪**：存的是笔记名不是文件 id，目标改名后链接会变成灰色虚线
   （靠「按名字在文件树里找」只能兜住「挪目录」，兜不住「换名字」）。
 - `[[` 选单只在打开了文件夹时有候选；没打开文件夹仍可手写 `[[相对路径/笔记]]`。
@@ -940,12 +930,9 @@ node test/runall.js table math # 只跑指定套件
     重启只回到最后写的那批；单窗口用标签页不受影响
 - 已知的键位取舍：`⌘⇧T` 归「重新打开已关闭的文件」，翻译因此挪到 `⌘⇧Y`
   —— 同一个键位挂两份原生菜单时 AppKit 只认菜单栏靠前的那条，另一条按不出来
-- 与 Typora V1 的逐项功能核对（120 项：119 完整 / 0 部分 / 1 未实现）见
-  [`docs/v1-parity.md`](docs/v1-parity.md)，含二十轮补做记录与剩余缺口。
+- 功能规格与逐项验证记录（120 项：119 完整 / 0 部分 / 1 未实现）见
+  [`docs/spec.md`](docs/spec.md)，含历轮补做记录、行为取舍与踩过的坑。
 
 ## 许可证
 
 MIT，见 [LICENSE](LICENSE)。内置第三方组件：Mermaid（MIT）、KaTeX（MIT，含 woff2 字体）。
-
-`docs/v1-parity.md` 是与 Typora 1.14 的行为核对记录；Typora 是其权利人的商标，
-本项目与 Typora 官方没有任何关系，也不包含它的任何代码。

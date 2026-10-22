@@ -438,7 +438,7 @@ select.chip { padding: 2px 4px; }
 }
 .blk.quote > blockquote > .blk:last-child { margin-bottom: 0; }
 
-/* 引用式链接定义行：[id]: url —— 与 Typora 一样不占版面，源码模式可见 */
+/* 引用式链接定义行：[id]: url —— 不占版面，源码模式可见 */
 .blk.linkdef { display: none !important; }
 
 /* Callouts / GitHub Alerts */

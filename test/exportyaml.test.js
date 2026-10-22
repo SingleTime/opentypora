@@ -25,7 +25,7 @@ function hasNot(s, sub, msg) {
   ok(String(s).indexOf(sub) < 0, (msg || '不应包含') + '「' + sub + '」');
 }
 
-const TMP = path.join(os.tmpdir(), 'typora-yaml-export-test');
+const TMP = path.join(os.tmpdir(), 'opentypora-yaml-export-test');
 fs.mkdirSync(TMP, { recursive: true });
 
 function files(bytes) {

@@ -42,7 +42,7 @@ enum SpellCheck {
             if w.isEmpty { continue }
             if ignore.contains(w.lowercased()) { continue }
             // 原样传、不 lowercased()：checkSpelling 对「句首大写」按专有名词放过，
-            // 这正好合我们的需要（Typora / GitHub / JavaScript 这些不该标红）。
+            // 这正好合我们的需要（GitHub / JavaScript / macOS 这些不该标红）。
             // 单行内出现换行会让 ranges 变形，这里挡一道。
             if w.contains("\n") || w.contains("\r") { continue }
             if checker.checkSpelling(of: w, startingAt: 0).location != NSNotFound {

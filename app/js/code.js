@@ -5,7 +5,7 @@
  * 让 Node 单测能直接打；只有右键菜单与 DOM 集成那一层碰 document。
  *
  * —— 为什么这么切 ——
- * Typora 的 Code Tools 是代码块右键里的一小撮：复制 / 复制为 HTML /
+ * Code Tools 是代码块右键里的一小撮：复制 / 复制为 HTML /
  * 自动缩进整理 / 注释 / 移动行。语言切换已经有右上角下拉了，不重复做。
  *
  * autoIndent 不是 parser。真 parser 要按语言各写一套且体积失控，这里用

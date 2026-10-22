@@ -1,5 +1,5 @@
 // strictparse.test.js —— 第七轮：严格模式的「解析侧」
-// 依据 Typora 官方 Strict Mode 文档（support.typora.io/Strict-Mode）两条规则：
+// 依据 Strict Mode 的两条规则：
 //   1. 标题必须在 # 字符后放空白；###Header 严格模式下不是标题，容错档下是。
 //   2. 列表项里新开的块/段落必须缩进到与上一段内容对齐的位置，否则不算同一项。
 // 纯 Node，不需要 WKWebView。

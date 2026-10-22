@@ -56,7 +56,7 @@
   }
 
   /* Markdown 链接：空格与圆括号要转义，否则 `[a](b c.md)` 解析不出来。
-   * 中文不转义（Typora 也是原样写的，可读性更好）。 */
+   * 中文不转义（原样写，可读性更好）。 */
   function linkText(name, target) {
     var label = String(name == null ? '' : name).replace(/([\[\]\\])/g, '\\$1');
     var url = String(target == null ? '' : target)

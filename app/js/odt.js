@@ -1,7 +1,7 @@
 /* ============================================================
  * odt.js — OpenDocument 文本（.odt）导出
  *
- * Typora 靠 pandoc 出 ODT，这里同样不依赖任何外部二进制：
+ * 出 ODT 的常见做法是靠 pandoc，这里不依赖任何外部二进制：
  * odt 就是一个 zip（mimetype + content.xml + styles.xml + meta.xml +
  * META-INF/manifest.xml），复用 zip.js 的 store 写入器即可。
  *

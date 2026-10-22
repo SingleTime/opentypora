@@ -101,7 +101,7 @@
     var model = MD.parse(src);
     var blocks = model.blocks;
 
-    // YAML front matter 覆盖导出设置（Typora / pandoc 惯例）
+    // YAML front matter 覆盖导出设置（pandoc 惯例）
     var y = Yaml.overrides(src);
     var title = y.title || opts.title || '';
     var author = y.author || opts.author || '';

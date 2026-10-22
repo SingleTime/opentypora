@@ -4,7 +4,7 @@
  * 不碰 DOM，可以直接在 Node 里 require 做单测。
  * UI 部分通过 init(adapter) 注入依赖，adapter 由 ui.js 提供。
  *
- * 路径语义（与 Typora 对齐）：
+ * 路径语义（与社区通行约定一致）：
  *   - 默认：图片路径相对「文档所在目录」
  *   - `typora-copy-images-to: assets/x` → 新插入的图片落到该目录（相对路径按文档目录解析）
  *   - `typora-root-url: ./res`         → 正文里的相对图片路径按该目录解析（相对路径同上）

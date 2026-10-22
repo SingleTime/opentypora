@@ -483,7 +483,7 @@
     toast('找不到笔记：' + target);
   }
 
-  // 最近切走/关掉的文件。⌘⇧T 按栈顶重开（Typora 的「重开已关闭文件」）
+  // 最近切走/关掉的文件。⌘⇧T 按栈顶重开（「重开已关闭文件」）
   var closedStack = [];
 
   function pushClosed(path) {
@@ -810,7 +810,7 @@
   }
 
   // 让文档里的相对图片路径相对于文件所在目录解析；
-  // front matter 里有 `typora-root-url` 时，改按该目录解析（与 Typora 一致）
+  // front matter 里有 `typora-root-url` 时，改按该目录解析
   function setBase(path, content) {
     var base = document.querySelector('base');
     if (!base) {
@@ -1571,7 +1571,7 @@
         Table.insertTableDialog(at);
         return;
       }
-      // 查找替换（Typora 同款 ⌘H）
+      // 查找替换（⌘H）
       if (k === 'h') { e.preventDefault(); openFind(true); return; }
       // 复制为 Markdown / 粘贴为纯文本
       if (k === 'c' && e.shiftKey) { e.preventDefault(); copyAsMarkdown(); return; }
@@ -1983,26 +1983,6 @@
     : [['github', 'GitHub'], ['night', 'Night'], ['newsprint', 'Newsprint'],
        ['pixyll', 'Pixyll'], ['whitey', 'Whitey'], ['gothic', 'Gothic']]);
 
-  /* 改名前（还叫 Typora 的时候）偏好与会话都挂在 `typora.` 前缀下。
-   * 升级不该丢设置，所以首启扫一遍旧键搬到 `opentypora.`，搬完删旧的；
-   * 新键已经有值就不覆盖（两个版本交替跑过的情况）。 */
-  function migrateLocalKeys() {
-    try {
-      var old = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.indexOf('typora.') === 0) old.push(k);
-      }
-      for (var j = 0; j < old.length; j++) {
-        var nk = 'opentypora.' + old[j].slice('typora.'.length);
-        if (localStorage.getItem(nk) == null) {
-          localStorage.setItem(nk, localStorage.getItem(old[j]));
-        }
-        localStorage.removeItem(old[j]);
-      }
-    } catch (err) {}
-  }
-
   function loadPrefs() {
     pref = {};
     for (var k in PREF_DEFAULT) pref[k] = PREF_DEFAULT[k];
@@ -2069,7 +2049,7 @@
     return '#ffffff';
   }
 
-  /* 视图缩放：只在正文区放大，侧边栏/工具栏保持原尺寸（Typora 的行为） */
+  /* 视图缩放：只在正文区放大，侧边栏/工具栏保持原尺寸 */
   function applyZoom() {
     var z = Math.max(0.8, Math.min(2, (+pref.zoom || 100) / 100));
     ['editor', 'split-prev-inner'].forEach(function (id) {
@@ -2727,7 +2707,6 @@
 
   /* ------------------------------------------------ 启动 */
   function boot() {
-    migrateLocalKeys();
     loadPrefs();
     // 渲染态拼写的两个原生入口（没有原生壳时留空，Spell 自己会静默跳过）
     if (window.Spell) {

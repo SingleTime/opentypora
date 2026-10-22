@@ -14,9 +14,6 @@ const THEME_CSS = [
 const MOCK = `
 <script>
 try { localStorage.clear(); } catch (e) {}
-/* 改名前的旧键：boot 应当把它搬到 opentypora.* 并删掉旧键（用没别处读的探针键，
- * 免得影响下面各条偏好断言） */
-try { localStorage.setItem('typora.__probe', 'v1'); } catch (e) {}
 window.__saveCount = 0;
 window.Bridge = {
   available: true,
@@ -66,13 +63,6 @@ const TEST = `
   async function run() {
     var watchdog = setTimeout(function () { if (!window.__report) { R.push('WATCHDOG 超时'); report(); } }, 900000);
     await sleep(700);
-
-    R.push('STEP 0 改名的旧键迁移');
-    ok('旧 typora.* 已搬到 opentypora.*',
-       (localStorage.getItem('opentypora.__probe') || '') === 'v1',
-       String(localStorage.getItem('opentypora.__probe')));
-    ok('旧键已删掉', localStorage.getItem('typora.__probe') == null,
-       String(localStorage.getItem('typora.__probe')));
 
     R.push('STEP 1 打开偏好面板');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: ',', metaKey: true, bubbles: true }));

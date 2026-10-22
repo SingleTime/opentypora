@@ -1,7 +1,7 @@
 /* ============================================================
  * yaml.js — YAML front matter 读取与「导出覆盖」归一化
  *
- * 背景：Typora / pandoc 的约定——文档开头 `---` 围栏里的键值对
+ * 背景：pandoc 等工具的约定——文档开头 `---` 围栏里的键值对
  * 会覆盖导出设置（title/author/date/toc/papersize/geometry…）。
  *
  * 取舍：不引 YAML 库。导出用得到的只有「扁平 key: value」，

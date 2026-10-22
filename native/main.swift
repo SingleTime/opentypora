@@ -266,7 +266,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKNavigationDelegate
     }
 
     /* 用户主题目录：~/Library/Application Support/OpenTypora/themes。
-     * 只认自己的目录 —— 不读、也不写别的软件（包括真 Typora）的应用支持目录。 */
+     * 只认自己的目录 —— 不读、也不写别的软件（包括其它 Markdown 编辑器）的应用支持目录。 */
     func themesDir() -> URL {
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!

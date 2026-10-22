@@ -9,7 +9,7 @@ const PIC = '/tmp/opentypora-img/pic.png';
 const DOC = [
   '# HTML 块',
   '',
-  '直接写 HTML，就按 HTML 渲染 —— 和 Typora 一样。点一下整块可以看回源码。',
+  '直接写 HTML，就按 HTML 渲染。点一下整块可以看回源码。',
   '',
   '<div style="padding:12px 16px;border-left:4px solid #d1242f;background:#fff5f5;border-radius:6px">',
   '<strong>提示：</strong>这段是手写的 <code>&lt;div&gt;</code>，样式全部来自行内 style。',

@@ -1,12 +1,12 @@
 /* ============================================================
  * xcmd.js — 自定义导出命令（pandoc 等外部转换器）
  *
- * 背景：Typora 的「Export → Custom」允许把当前 Markdown 交给外部
+ * 背景：自定义导出项允许把当前 Markdown 交给外部
  * 命令处理，命令里用占位符引用文档与输出路径。内置导出器再全也
  * 覆盖不到 icml / docbook / asciidoc 这类格式，与其继续堆包，
  * 不如把口子开给用户。
  *
- * 占位符（两套名字都认，Typora 老配置能直接搬过来）：
+ * 占位符（两套名字都认，老配置能直接搬过来）：
  *   {src} {currentFilePath}   当前文档的临时 Markdown 副本
  *   {out} {outputPath}        保存面板选中的输出文件
  *   {name}                    文档主名（不含扩展名）
@@ -46,7 +46,7 @@
     }
   ];
 
-  // Typora 用的老名字，两套都展开到同一个变量上
+  // 老式占位符名，两套都展开到同一个变量上
   var ALIAS = { currentFilePath: 'src', outputPath: 'out' };
   // 这些只是「包在外层」的调用方式，真正的程序在后面
   var WRAPPERS = ['env', 'nohup', 'nice', 'time'];

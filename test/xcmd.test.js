@@ -16,7 +16,7 @@ function eq(name, actual, expect) {
 console.log('占位符展开');
 eq('src/out 两个都换', X.expand('pandoc "{src}" -o "{out}"', { src: '/t/a.md', out: '/o/a.docx' }),
   'pandoc "/t/a.md" -o "/o/a.docx"');
-eq('Typora 老写法也认', X.expand('pandoc {currentFilePath} -o {outputPath}', { src: 'S', out: 'O' }),
+eq('老式占位符写法也认', X.expand('pandoc {currentFilePath} -o {outputPath}', { src: 'S', out: 'O' }),
   'pandoc S -o O');
 eq('name/dir/ext', X.expand('{name}|{dir}|{ext}', { name: '笔记', dir: '/家/档', ext: 'icml' }),
   '笔记|/家/档|icml');

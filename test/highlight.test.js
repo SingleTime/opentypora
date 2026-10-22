@@ -57,7 +57,7 @@ const SAMPLES = {
   html: '<!DOCTYPE html>\n<!-- page -->\n<div class="box" id="main">\n  <a href="/x">链接</a>\n</div>',
   java: 'package a;\n// note\npublic class A {\n  private String s = "x";\n  @Override public String toString() { return s; }\n}',
   javascript: '// note\nconst a = 1;\nconst s = "x";\nfunction f(x) {\n  return `v=${x}`;\n}',
-  json: '{\n  "name": "typora",\n  "n": 12,\n  "ok": true,\n  "list": [1, 2]\n}',
+  json: '{\n  "name": "opentypora",\n  "n": 12,\n  "ok": true,\n  "list": [1, 2]\n}',
   jsx: 'const El = () => (\n  <div className="box">hi</div>\n);',
   kotlin: '// note\nfun main() {\n  val s = "hi"\n  println(s)\n}',
   latex: '% note\n\\section{标题}\n\\textbf{bold} $x^2$ 10pt\n\\begin{itemize}\n\\item a\n\\end{itemize}',
@@ -78,7 +78,7 @@ const SAMPLES = {
   tsx: 'type P = { a: number };\nconst El = (p: P) => <div className="box">{p.a}</div>;',
   typescript: '// note\ninterface A { a: string }\nconst f = (x: A): string => `v=${x.a}`;',
   xml: '<?xml version="1.0"?>\n<!-- note -->\n<root id="1">\n  <item>v</item>\n</root>',
-  yaml: '# note\nname: typora\nlist:\n  - a\n  - b\nflag: true\nurl: http://a#b'
+  yaml: '# note\nname: opentypora\nlist:\n  - a\n  - b\nflag: true\nurl: http://a#b'
 };
 
 /* -------------------------------------------------- 覆盖：34 项 → 33 种 */

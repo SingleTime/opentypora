@@ -7,7 +7,7 @@ import Foundation
  * 「打开 App 之后渲染态会怎么判」。
  *
  * 只断言稳定的词：recieve / occured / seperate 一类明确错拼，receive /
- * because / hello 一类明确正确。不拿 Typora、GitHub 这种「靠大小写放过」
+ * because / hello 一类明确正确。不拿 GitHub、JavaScript 这种「靠大小写放过」
  * 的词做断言 —— 那取决于系统词典版本，换台机器就该红。 */
 
 var pass = 0

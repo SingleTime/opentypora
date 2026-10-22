@@ -1,15 +1,14 @@
-# OpenTypora × Typora V1 功能对齐核对
+# OpenTypora 功能规格与验证记录
 
-> 应用原名「Typora（自研克隆版）」，2026-10-22 为避开与商业软件重名改成 **OpenTypora**
-> （本文件里不带引号的 Typora 一律指被对齐的那个商业软件）。
-> 核对时间：2026-10-22（第十九轮：粘贴 / 拖入图片跟随 `typora-copy-images-to`）
-> 核对基准：Typora 1.14（macOS）官方支持文档 <https://support.typora.io/> 的功能页
-> 核对对象：本仓库（`opentypora/`）
-> 回归基线：`node test/runall.js` → **3318/3318 全绿**（57 个套件）
+> 规格基线：A–G 七个领域共 120 项可核对功能点（另有「上传图床」明确不做，未计入）
+> 记录范围：每一项的落地位置、边界行为、测试证据，以及历轮补做与踩到过的坑
+> 产品形态：macOS 单平台（AppKit + WKWebView），命令行 `opentypora`，
+> 用户数据目录 `~/Library/Application Support/OpenTypora`
+> 回归基线：`node test/runall.js` → **3316/3316 全绿**（57 个套件）
 
-## 结论
+## 覆盖情况
 
-**基本全对齐。** 第一轮核对后按 P0–P3 补做，语法扩展、编辑手感、文件与搜索、
+**120 项里 119 项完整实现。** 按 P0–P3 分批补做，语法扩展、编辑手感、文件与搜索、
 导出选项四大块落地；第三轮补完**图片管理**（插入对话框 / 重命名 / 移动 / root-url /
 删除 / 居中）与**大纲筛选折叠**；第四轮补完 ODT/RTF/RST/MediaWiki/OPML 导出与
 ODT/RST 导入；第五轮补完 **Textile / RevealJS 导出**、**ePub / LaTeX 导入**与
@@ -30,7 +29,7 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 偏好面板三个控件实时生效，导出的单页 HTML 带同一组变量）；第十六轮补完 **多标签页**
 （`tabs.js` 纯函数状态机 + `Editor.snapshotDoc/restoreDoc` 存现场：正文、撤销栈、
 滚动位置、光标所在块都跟着标签走；`⌘T` / `⌘W` / `⌃⇥` / `⌘⇧[ ]`，标签栏在两个以上时出现）；
-第十七轮补完 **标签页持久化**（`typora.session` 只记绝对路径，重启后整排标签与前台页
+第十七轮补完 **标签页持久化**（`opentypora.session` 只记绝对路径，重启后整排标签与前台页
 一起回来，正文按磁盘重读、打不开的跳过、命令行打开某篇时不恢复会话）；
 第十八轮补完 **行内实时预览**（块编辑面从纯 textarea 换成「能藏标记的渲染态」：
 `live.js` 算「哪几段标记该露」与「DOM 里改的一笔落在原文哪儿」，`editor.js` 给 live 元素
@@ -114,9 +113,9 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | 38 | Mermaid 图 | ✅ | `diagram.js`，27 项测试 |
 | 39 | flowchart.js / sequence 图 | ✅ | `flow.js`：节点 `id=>type: label`、边 `a->b` / `a(x)->b` / `a->\|x\|->b`、链式；回边 DFS 剔除后 DAG 分层，正交走线（横向只走层间间隙、纵向走画布外通道）；ePub/RevealJS 导出可内嵌 SVG。sequence 图仍只支持 mermaid |
 | 40 | 引用式图片 `![a][id]` | ✅ | 与 21 同一套定义表 |
-| 41 | 严格模式（`#` 后必须有空格、列表缩进严格） | ✅ | 渲染侧 + **解析侧**双档：严格档 `###Header` 不算标题、列表续行与子列表必须缩进对齐到内容列（`indent + marker 宽 + 1`）；宽松档按 Typora 默认行为容错。切档走 `Editor.reparse()` 重建块模型，两档都保持序列化无损 |
+| 41 | 严格模式（`#` 后必须有空格、列表缩进严格） | ✅ | 渲染侧 + **解析侧**双档：严格档 `###Header` 不算标题、列表续行与子列表必须缩进对齐到内容列（`indent + marker 宽 + 1`）；宽松档按常见编辑器的默认行为容错。切档走 `Editor.reparse()` 重建块模型，两档都保持序列化无损 |
 
-> 说明：Typora 自己**不支持**缩进式代码块（只认 GFM 围栏），本项目同样不支持，未计入差异。
+> 说明：缩进式代码块不做支持（只认 GFM 围栏），未计入这 120 项。
 
 ---
 
@@ -125,9 +124,9 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | # | 功能 | 状态 | 证据 / 说明 |
 | --- | --- | --- | --- |
 | 1 | 块级所见即所得 | ✅ | `blocks[{raw}] + gaps[]` 模型，无损序列化 |
-| 2 | 行内标记即时隐藏（Typora 的 live preview） | ✅ | `live.js`（纯逻辑）+ `editor.js` 的 live 表面：进块编辑时能藏的块直接是**渲染态**（`**` 不在 DOM 里），光标进到某一段强调里才把那对标记作为 `.live-mk` 插回去；标题的 `## ` 也藏，光标到行首现形、退格一次去掉整个前缀。原文仍是唯一真源：DOM 改动按「文本前后最小差异」翻回 `raw` 再重画（`serialize(parse(src)) === src` 不变）；live 元素装了一套与 textarea 同名的 `.value` / `.selectionStart` / `setSelectionRange`，按键、自动配对、撤销、表情补全、`⌘B` 全部沿用原代码。代码/链接/公式/行内 HTML/表格/任务框/多行段落退回源码态。`live` 87 项（纯 Node）+ `livedom` 76 项（真 WKWebView） |
+| 2 | 行内标记即时隐藏 | ✅ | `live.js`（纯逻辑）+ `editor.js` 的 live 表面：进块编辑时能藏的块直接是**渲染态**（`**` 不在 DOM 里），光标进到某一段强调里才把那对标记作为 `.live-mk` 插回去；标题的 `## ` 也藏，光标到行首现形、退格一次去掉整个前缀。原文仍是唯一真源：DOM 改动按「文本前后最小差异」翻回 `raw` 再重画（`serialize(parse(src)) === src` 不变）；live 元素装了一套与 textarea 同名的 `.value` / `.selectionStart` / `setSelectionRange`，按键、自动配对、撤销、表情补全、`⌘B` 全部沿用原代码。代码/链接/公式/行内 HTML/表格/任务框/多行段落退回源码态。`live` 87 项（纯 Node）+ `livedom` 76 项（真 WKWebView） |
 | 3 | 源码模式（`⌘/`） | ✅ | `srcmode.js` 双层：textarea 文字透明只留光标，下面 `<pre>` 逐行画行号与 token（围栏内按围栏语言上色）；行号 `sticky` 跟随横滚，`rAF` 合帧重画；进模式重置光标到开头 |
-| 4 | 分栏模式（`⌘⇧L`） | ✅ | V1 没有此功能，属超出项 |
+| 4 | 分栏模式（`⌘⇧L`） | ✅ | 规格外增量项（自研） |
 | 5 | 专注模式 | ✅ | 三级衰减：光标块 1.0 / 前后各一块 0.62 / 其余 0.3（标题另有 0.45 / 0.72 档），近邻由 `Caret.nearOf` 算并打 `.near`；编辑块里再给光标行垫一条淡强调色底（`.caret-line`），按压键 / 点击 / 选区变化刷新 |
 | 6 | 打字机模式 | ✅ | 按「光标行」而不是整块居中：`Caret.measure` 用同字体同宽的镜像 div 量出折行后的真实行位置（文首放零宽基准抵掉 leading），`Caret.center` 把该行中线对到视口中线；`input` / `keyup` / `click` 都会重新居中，滚动时临时压掉 `scroll-behavior: smooth` 以免滞后 |
 | 7 | 自动配对括号 / 引号 / Markdown 符号 | ✅ | `tryPair`：选区包裹、重复符号跳过、词边界限制；偏好项可关 |
@@ -146,7 +145,7 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | 20 | 代码块「复制代码」 | ✅ | 右上角复制按钮；右键 Code Tools 八项：复制代码 / 复制为 HTML / 复制为 Markdown / 自动缩进整理 / 切换行注释 / 上移行 / 下移行 / 删除块。另有 `⌘/` 切注释、`⌥↑↓` 移行、块内 Tab/Shift+Tab 整段缩进（`code.js`，纯函数 110 项 + harness 47 项） |
 | 21 | 复制为 Markdown（`⌘⇧C`） | ✅ | `copyAsMarkdown` |
 | 22 | 粘贴为纯文本（`⌘⇧V`） | ✅ | `pastePlainText` |
-| 23 | 多窗口 / 标签页 / 重开已关闭文件 | ✅ | 三样齐：`⌘⇧N` 新窗口、`⌘⇧T` 重开已关闭文件（最近 20 个）、**标签页**（`⌘T` 新建 / `⌘W` 关闭 / `⌃⇥`·`⌘⇧[ ]` 切换 / 中键关闭）。切页时正文、撤销栈、滚动位置、光标所在块都跟着标签走；同一个文件不会开出第二个标签；关掉最后一个标签不关窗口，换成一张空白文档；**重启后整排标签还原**（`typora.session` 只记 path，正文以磁盘为准，打不开的跳过，命令行打开某篇时不恢复会话） |
+| 23 | 多窗口 / 标签页 / 重开已关闭文件 | ✅ | 三样齐：`⌘⇧N` 新窗口、`⌘⇧T` 重开已关闭文件（最近 20 个）、**标签页**（`⌘T` 新建 / `⌘W` 关闭 / `⌃⇥`·`⌘⇧[ ]` 切换 / 中键关闭）。切页时正文、撤销栈、滚动位置、光标所在块都跟着标签走；同一个文件不会开出第二个标签；关掉最后一个标签不关窗口，换成一张空白文档；**重启后整排标签还原**（`opentypora.session` 只记 path，正文以磁盘为准，打不开的跳过，命令行打开某篇时不恢复会话） |
 | 24 | 文本片段（Text Snippet） | ✅ | `snippet.js`：`触发词 => 内容`（`\n`/`\t` 转义、`$0` 光标落点），Tab 展开；偏好面板可编辑 |
 | 25 | 引用块回车自动续 `>` | ✅ | `onKeyDown`：空引用行退出 |
 | 26 | 选择当前行 / 单词（`⌘L` / `⌘D`） | ✅ | `selectLineAtCaret` / `selectWordAtCaret` |
@@ -210,7 +209,7 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | 9 | 导出 LaTeX（`ctexart`） | ✅ | XeLaTeX 可直接编译 |
 | 10 | ODT / RTF / MediaWiki / RST / Textile / OPML / RevealJS | ✅ | 全部自研：ODT（zip+content.xml，含图片/脚注）、RTF（含表格/域）、RST（grid 表/指令）、MediaWiki、**Textile**（`h1(#id).`/`\|_.`/`bc..`/`fn1.`）、OPML、**RevealJS**（h1 横向 / h2 纵向分页，图片内嵌 data URI，离线自动降级为滚动文档） |
 | 11 | 导出到上次位置 / 覆盖上次 | ✅ | 原生 `lastDir` 记住上次目录并作为面板初始位置，覆盖走系统确认 |
-| 12 | 自定义导出命令 / Pandoc 导出项 | ✅ | `xcmd.js` + 原生 `runExport`：偏好面板维护命令列表（名称 / 命令 / 扩展名，上限 12 条，内置 pandoc 三件套预设），导出菜单末尾列项；执行时文档先落临时 `.md`，`{src}/{out}/{name}/{dir}/{ext}`（兼容 Typora 的 `{currentFilePath}/{outputPath}`）展开后交 `/bin/sh -c`；pandoc 缺失时给 `brew install pandoc`，输出量大也不卡（重定向到文件而非 Pipe） |
+| 12 | 自定义导出命令 / Pandoc 导出项 | ✅ | `xcmd.js` + 原生 `runExport`：偏好面板维护命令列表（名称 / 命令 / 扩展名，上限 12 条，内置 pandoc 三件套预设），导出菜单末尾列项；执行时文档先落临时 `.md`，`{src}/{out}/{name}/{dir}/{ext}`（兼容社区自定义导出命令常用的 `{currentFilePath}` / `{outputPath}` 占位符）展开后交 `/bin/sh -c`；pandoc 缺失时给 `brew install pandoc`，输出量大也不卡（重定向到文件而非 Pipe） |
 | 13 | YAML 覆盖导出设置 | ✅ | `yaml.js`：front matter 的 `title/subtitle/author/date/keywords` 覆盖元信息，`toc/toc-title` 补目录，`papersize/geometry/fontsize/linestretch/documentclass` 覆盖 LaTeX 与 PDF 纸张；LaTeX / docx / epub / odt / reveal / HTML 六个出口统一生效（会进 LaTeX preamble 的字段过白名单防注入） |
 | 14 | 导入 Word / HTML（`⌘⇧I`） | ✅ | 自写 OOXML/HTML 解析器，33 + 26 项测试 |
 | 15 | 导入 ODT / ePub / LaTeX / RST 等 | ✅ | ODT（`content.xml` → 标题/列表/表格/脚注/图片出包）、RST（下划线标题/code-block/grid 表/脚注）、**ePub**（解 zip → OPF spine → 逐章 HTML 转 md，图片从包内抽出、脚注还原成 `[^n]`）、**LaTeX**（`\section` 系列 / itemize / tabular / verbatim / 公式环境 / `\textbf`·`\href`·`\footnote` 一类行内命令） |
@@ -235,21 +234,20 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | # | 功能 | 状态 | 证据 / 说明 |
 | --- | --- | --- | --- |
 | 1 | Finder 双击 `.md` 打开 | ✅ | `Info.plist` 注册 `net.daringfireball.markdown` |
-| 2 | `open -a Typora file.md` | ✅ | `application(_:open:)`，目录走 `openFolderAt` |
-| 3 | 命令行 `typora file.md` | ✅ | `bin/typora` + `install-cli.sh`：文件/目录/`-` 读 stdin/`-v`/`-h` |
+| 2 | `open -a OpenTypora file.md` | ✅ | `application(_:open:)`，目录走 `openFolderAt` |
+| 3 | 命令行 `opentypora file.md` | ✅ | `bin/opentypora` + `install-cli.sh`：文件/目录/`-` 读 stdin/`-v`/`-h` |
 | 4 | Windows / Linux 版 | ✗ | 仅 macOS（AppKit + WKWebView） |
 | 5 | 原生打印对话框（`⌘P`） | ✅ | `Bridge.print` → `printOperation` + 打印面板；无原生桥时回落导出 PDF |
 
 ---
 
-## 关键行为差异（仍然存在）
+## 行为取舍
 
-1. ~~**块内编辑显示源码**~~：第十八轮已改成行内标记即时隐藏；残余差异只有——含
-   代码/链接/公式/行内 HTML/表格/任务框/多行的块仍显示原文（标记里装着真内容，藏了没法改），
-   以及列表 / 引用的前缀照原样显示。
-2. **链接单击即打开**：Typora 需要 `⌘ + 点击`。相对 `.md` 链接现在会在应用内打开。
-3. ~~**单窗口无标签页**~~：第十六轮已补上（`⌘T` / `⌘W` / `⌃⇥` / `⌘⇧[ ]`，会话跨重启）。
-4. **图片管理走右键菜单**：Typora 是悬浮工具条；这里是右键（重命名/移动/复制/删除/整理全部）。
+1. **含代码 / 链接 / 公式 / 行内 HTML / 表格 / 任务框 / 多行的块，进编辑态仍显示原文** ——
+   这些标记里装着真内容，藏了没法改；列表与引用的前缀也照原样显示（带缩进语义）。
+   只有纯行内强调、删除线、高亮、上下标与标题前缀会被藏起来。
+2. **链接单击即打开**：相对 `.md` 链接在应用内换页，`http(s)` 走系统浏览器。
+3. **图片管理走右键菜单**：重命名 / 移动 / 复制 / 删除 / 整理全在右键里，不做悬浮工具条。
 
 ---
 
@@ -260,7 +258,7 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 | P0 | 引用式链接/图片、裸 URL、上下标、Emoji、行内 HTML、Callouts、引用续行 | `md.js` / `inline.js` / `editor.js` | `syntax2` 50 项 |
 | P1 | 自动配对、智能标点、字数面板、缩放、代码块行号/语言/复制、表格原位编辑+插入对话框+列宽 | `editor.js` / `ui.js` / `table.js` | `table` 46、`selbar` 32、`prefs` 30 |
 | P2 | Open Quickly、全局搜索、最近文件、文件树右键、Articles、相对链接、目录监视、草稿恢复 | `workbench.js` / `ui.js` / `native/main.swift` | `workbench` 25、`note` 41 |
-| P3 | 导出图片(PNG/JPEG)、HTML 无样式、PDF 纸张/边距/页眉页脚/H1 分页、原生打印、Whitey/Gothic、CLI | `native/main.swift` / `ui.js` / `app.css` / `bin/typora` | `exportui` 63、`exportopts` 28、`cli` 15 |
+| P3 | 导出图片(PNG/JPEG)、HTML 无样式、PDF 纸张/边距/页眉页脚/H1 分页、原生打印、Whitey/Gothic、CLI | `native/main.swift` / `ui.js` / `app.css` / `bin/opentypora` | `exportui` 63、`exportopts` 28、`cli` 15 |
 
 回归：`node test/runall.js` → **789/789**（20 个套件）。
 
@@ -365,7 +363,7 @@ outline，自动跳过目录页）；第十二轮补完 **HTML 导出的「导�
 ### 仍然明确的缺口（按价值排序）
 
 1. ~~标签页~~（`⌘⇧N` 多窗口与 `⌘⇧T` 重开已有）—— **第十六轮已补上**
-2. ~~行内标记即时隐藏~~（Typora 的 live preview）—— **第十八轮已补上**
+2. ~~行内标记即时隐藏~~ —— **第十八轮已补上**
 
 第九轮把「HTML 自定义 head/body」「拖文件插链接」「最近文件固定」三项清掉了；
 `E-3` 当时仍记 ◐ 是因为「导出主题」是独立能力（换一套主题 CSS 再导出），不并入
@@ -398,12 +396,12 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
 
 | 组 | 项 | 落地位置 | 测试 |
 | --- | --- | --- | --- |
-| 导出 | HTML 导出「导出主题」 | `export.js` 新增 `themes`（六套内置，与 `app.css` 的 `html[data-theme="…"]` 一一对应）与 `themePick(raw, base)`（`'night'` → 内置；`'user:x.css'` → 自定义主题叠在 `base` 上；未知值回落 github；文件名去掉 `\`、`/` 与前导点）；`htmlOptions` 多出 `theme`/`themeFile`，`htmlDoc` 输出 `<html data-theme="…" class="typora-export">` 与 `<body class="typora-export">`；`ui.js` 对话框加「导出主题」下拉（内置 + 自定义 optgroup，记住上次选择，不导出样式时自动灰掉），导出前 `Bridge.readTheme` 取自定义主题 CSS 并走 `tweakUserCss` 把 `:root` 抬成 `html[data-theme]`；`bridge.js` 多传 `themeCss`；新增 `native/webexport.swift` `WebExport.inject`（`app.css` 先、自定义主题后，`</style` 转义，缺 `</head>` 时退到 `<body>` 前） | `htmltheme` 74 项（纯 Node + 22 项 Swift 注入断言）、`htmlthemedom` 27 项（srcdoc iframe 里量计算样式：data-theme、背景/文字色与 `app.css` 变量逐值相等、深色比浅色暗、自定义主题压住内置、无样式导出确实没有 CSS、`overflow` 不再 hidden 且能滚、标题/正文/限宽/等宽字体）、`exportui` +21 项（下拉 6+1 项、默认跟当前主题、样式关掉时禁用、选夜间写出 `data-theme`、自定义主题 CSS 与文件名传到原生、偏好记忆） |
+| 导出 | HTML 导出「导出主题」 | `export.js` 新增 `themes`（六套内置，与 `app.css` 的 `html[data-theme="…"]` 一一对应）与 `themePick(raw, base)`（`'night'` → 内置；`'user:x.css'` → 自定义主题叠在 `base` 上；未知值回落 github；文件名去掉 `\`、`/` 与前导点）；`htmlOptions` 多出 `theme`/`themeFile`，`htmlDoc` 输出 `<html data-theme="…" class="opentypora-export">` 与 `<body class="opentypora-export">`；`ui.js` 对话框加「导出主题」下拉（内置 + 自定义 optgroup，记住上次选择，不导出样式时自动灰掉），导出前 `Bridge.readTheme` 取自定义主题 CSS 并走 `tweakUserCss` 把 `:root` 抬成 `html[data-theme]`；`bridge.js` 多传 `themeCss`；新增 `native/webexport.swift` `WebExport.inject`（`app.css` 先、自定义主题后，`</style` 转义，缺 `</head>` 时退到 `<body>` 前） | `htmltheme` 74 项（纯 Node + 22 项 Swift 注入断言）、`htmlthemedom` 27 项（srcdoc iframe 里量计算样式：data-theme、背景/文字色与 `app.css` 变量逐值相等、深色比浅色暗、自定义主题压住内置、无样式导出确实没有 CSS、`overflow` 不再 hidden 且能滚、标题/正文/限宽/等宽字体）、`exportui` +21 项（下拉 6+1 项、默认跟当前主题、样式关掉时禁用、选夜间写出 `data-theme`、自定义主题 CSS 与文件名传到原生、偏好记忆） |
 
 两件事值得记：一是指标必须落在**真的导出文档**上 —— `srcdoc` iframe 里 `data-theme` 生效、
 计算色值与 `app.css` 变量逐值相等，才算「换皮」成立（只断言字符串里有没有 `data-theme="night"`
 挡不住 CSS 没内联、变量没生效这类错）。二是顺手修掉一个老问题：导出的单页继承了应用外壳的
-`html,body{height:100%;overflow:hidden}`，长文档在浏览器里根本滚不动；现在 `html.typora-export`
+`html,body{height:100%;overflow:hidden}`，长文档在浏览器里根本滚不动；现在 `html.opentypora-export`
 把 `height` 放开、`overflow` 改回 `visible`，`htmlthemedom` 里有对应断言（`overflow` 不是 hidden
 + 滚到 600px）。`WebExport.inject` 的样式注入顺序也有断言兜着：自定义主题必须排在 `app.css`
 之后，否则内置主题的 `html[data-theme]` 变量会把它压回去。
@@ -440,7 +438,7 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
 | 组 | 项 | 落地位置 | 测试 |
 | --- | --- | --- | --- |
 | 编辑 | 渲染态拼写波浪线 | `app/js/spell.js`（新）：`tokenize` 切词（字母 + 撇号，连字符/下划线断开，单字母与超长串不收）→ `pending` 去重并跳过缓存 → `Bridge.spellCheck` 批量问原生 → 命中词包 `<span class="spell-bad">`；`paint` 用 TreeWalker 走文本节点，`blocked()` 一路爬到根挡掉 `pre/code/kbd/samp/.katex/.mermaid/.raw-html/.editing` 等禁区；`unpaint` 拆包后 `normalize()` 合并碎文本节点。`editor.js` 在 `render()` 后整篇上色、`exitEdit` 只重画被替换的那一块 | `spell` 126 项（纯 Node 105 + Swift 21）、`spelldom` 49 项（真 WKWebView） |
-| 编辑 | 原生词典桥 | `native/spell.swift`（新）：`SpellCheck.unknowns(_:ignore:)` 批量判定、`guesses(for:)` 建议词，都跑在同一条 `DispatchQueue(label:"typora.spell")` 串行队列上，算完回主线程；`main.swift` 新增 `spellCheck` / `spellGuesses` 两个方法；`bridge.js` 对应两个 Promise 包装 | `test/spell/main.swift`：21 项真词典断言（正确词不报、错拼全报、下标对齐、ignore 大小写不敏感、建议词、串行队列回调） |
+| 编辑 | 原生词典桥 | `native/spell.swift`（新）：`SpellCheck.unknowns(_:ignore:)` 批量判定、`guesses(for:)` 建议词，都跑在同一条 `DispatchQueue(label:"opentypora.spell")` 串行队列上，算完回主线程；`main.swift` 新增 `spellCheck` / `spellGuesses` 两个方法；`bridge.js` 对应两个 Promise 包装 | `test/spell/main.swift`：21 项真词典断言（正确词不报、错拼全报、下标对齐、ignore 大小写不敏感、建议词、串行队列回调） |
 | 编辑 | 右键建议 + 忽略表 | `spell.js`：`rawOffset`（最近的 `data-s` + 片段内偏移）+ `fixAt`（±3 微调 → 全篇找最近）定位，`apply` 走 `Editor.replaceRawRange` 只改那一处；菜单列建议词 + 「忽略「x」」，忽略写进 `pref.spellIgnore`（`ui.js` 持久化），同时把该词在缓存里记成「对」 | `spelldom`：菜单弹出/标题/建议项/点击替换/替换后关闭/忽略后不再标/忽略不影响别的词，另有一条「同词出现两次只改点中的那处」的回归 |
 | 外观 | 波浪线与主题 | `app.css`：六套主题各加 `--spell`（`:root` 有兜底），`.spell-bad` 用 `text-decoration: underline wavy` + `text-decoration-skip-ink: none` + `text-underline-offset: 2.5px`；`.spell-menu` 菜单样式 | `spell` 里逐主题断言 `--spell` 存在、`spell` 的 CSS 断言与 `spelldom` 的计算样式（`wavy` / `underline` / `skip-ink:none` / 颜色等于主题变量） |
 
@@ -457,7 +455,7 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
    命令行进程里回主队列的回调永远不会执行，除非自己转 `RunLoop`；用信号量等会主线程
    自己等自己，超时后拿到空结果。
 3. **系统词典的脾气要摸清再写断言。** 全大写词一律当缩写放过（`RECIEVE` 不报），
-   首字母大写按专有名词放过一部分（`Recieve` 报、`Typora` 不报），而且 macOS 会把用户
+   首字母大写按专有名词放过一部分（`Recieve` 报、`iPhone` 不报），而且 macOS 会把用户
    「学过」的词写进 `~/Library/Spelling`（`teh` 在这台机器上已经是正确词）。所以：
    harness 一律用桩词典，真词典断言只留 `recieve/occured/seperate` 这类铁错拼；
    真机端到端另用探针包截图核对（`bad=[0,1,3]`、7 条波浪线）。
@@ -590,7 +588,7 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
 | 编辑 | 标记的区间与「该露哪几段」 | `app/js/live.js`（新，约 210 行，UMD 纯函数）：`canLive`（≤4000 字、单行、不含 `\` `` ` `` `[ ]` `$` `< >` `\|`）、`scan`（与 `md.js` 的 `renderInline` **同序同规则**：strong → del → mark → em → sup → sub，嵌套递归进去扫）、`reveal`（「严格在区间内」才算，贴着开标记之前 / 闭标记之后都在外面）、`prefix` / `prefixKind`（标题的前缀可以藏，列表与引用不藏）、`diff`（前后最小差异）、`applyEdit` + `cleanupAt`（删空一对标记时把空标记对一起清掉、光标跟着回退，纯插入不动 —— 否则会吃掉手写的连续星号） | `live` 87 项 |
 | 编辑 | 渲染态直接可编辑 | `editor.js` 新增一整段「行内实时预览」：`liveInner`（`MD.renderInline` 出渲染态，标记不进 DOM）、`textMap`（DOM 文本节点 → 原文偏移，`data-s` 当锚点、标记节点不占显示坐标）、`rawAtDisplay` / `domOfRaw` / `rawAtPoint` 双向映射（片段边界上按 bias 取「后一片段开头」或「前一片段末尾」）、`syncReveal`（按光标插/拆标记，`spliceMarkers` + `splicePrefix`）、`liveTranslate`（DOM 改动按差异翻回 `raw` 再重画）、`resyncLive` / `demoteLive`（形状变了当场退回 textarea） | `livedom` 76 项（真 WKWebView） |
 | 编辑 | 与既有编辑逻辑共存 | live 元素用 `Object.defineProperty` 装出 `value` / `selectionStart` / `selectionEnd` + `setSelectionRange` / `focus`（`liveSurface`），上层的按键、自动配对、智能标点、撤销**一行都不分叉**；`srcArea()` 选择器放宽成 `textarea.src, .src`；`caret.js` 的 `measure` 认识 live（`__liveCollapsed` / `__liveDisplayPos` 两个惰性函数，镜像量法照旧）；`emoji.js` / `wikilink.js` 的 `TEXTAREA` 硬判断加 `\|\| t.__live`；`⌘0` 缩放的归零判断接纳 live | `caredom` 34、`tabsdom` 92、`edit2` 53、`find` 33、`html` 43 项 |
-| 编辑 | 偏好开关 | `ui.js` `PREF_DEFAULT.live`（默认开）+ `applyPrefs()` → `Editor.setLivePreview()`；`index.html` 偏好面板加「行内实时预览」一行；关掉时把当前块退回 textarea；`TyporaCmd.setLivePreview` 供脚本调用 | `prefs` 30 项 |
+| 编辑 | 偏好开关 | `ui.js` `PREF_DEFAULT.live`（默认开）+ `applyPrefs()` → `Editor.setLivePreview()`；`index.html` 偏好面板加「行内实时预览」一行；关掉时把当前块退回 textarea；`OpenTyporaCmd.setLivePreview` 供脚本调用 | `prefs` 30 项 |
 
 四个真坑：
 
@@ -649,58 +647,13 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
 
 ---
 
-## 第二十轮维护记录（2026-10-22 改名 + 去 Typora 目录依赖）
-
-改名不是功能，登记在这里只因为顺着查出两个真缺陷。
-
-| 事项 | 处理 |
-| --- | --- |
-| 应用身份 | Typora → **OpenTypora**：`OpenTypora.app`、bundle id `local.fw.opentypora`、CLI `opentypora`、`localStorage` 前缀 `opentypora.*`（`typora.*` 首启搬移一次） |
-| 用户主题目录 | 固定 `~/Library/Application Support/OpenTypora/themes`，**不再回退** `.../Typora/themes`；两个软件互不读写对方的数据目录 |
-| 围栏解析 | 反引号围栏的 info string 里再出现反引号时不算开围栏（CommonMark）。README 里 `` ```` ```flow ```` `` 原先被当开围栏，后文整篇被吞进代码块 —— 这份文档的 LaTeX / Word / ePub 导出样例都因此在「跑集成测试的两个环境坑」处截断 |
-
-- 围栏这条加了 4 条断言（`parser` 117 → 121）：内联围栏写法不吃后文、四个反引号的真围栏照常、
-  波浪号围栏的 info 可以带反引号、段落中间不误判。
-- 三份导出样例（`docs/exports/`）重新生成：`.tex` 46 KB → 52 KB 且以 `\end{document}` 收尾，
-  `.docx` 187 KB → 280 KB，`.epub` 93 KB → 110 KB。
-- `htmltheme` 加 1 条源码断言：原生 `themesDir()` 里只允许出现 `OpenTypora/themes`。
-
-回归：`node test/runall.js` → **3318/3318**（57 个套件）。
-
----
-
-## 第二十一轮维护记录（2026-10-22 旧版清理与偏好迁移）
-
-不是功能，登记是因为顺着查出「改名后偏好到底搬没搬」这件事被写错了。
-
-| 事项 | 处理 |
-| --- | --- |
-| 旧版清理 | `/Applications/Typora.app`、`~/Library/WebKit/local.fw.typora`、`~/Library/Caches/local.fw.typora`、`~/Library/Preferences/local.fw.typora.plist`、空的 `~/Library/Application Support/Typora` 一并移入废纸篓（走 `mv` 到 `~/.Trash`，可回滚，不是 `rm`） |
-| 偏好迁移 | 旧库里 6 行 `typora.*` 用 `sqlite3` + `ATTACH` 原样灌进新库，首启由 `migrateLocalKeys()` 改名成 `opentypora.*`：目标键已有值不覆盖，旧键随即删除 |
-
-- **真坑：键级改名的适用范围比想象的窄。** WKWebView 的 localStorage 按 bundle id 分数据目录
-  （`~/Library/WebKit/<bundle id>/WebsiteData/Default/<origin hash>/…/localstorage.sqlite3`），
-  改名后 `local.fw.typora` 与 `local.fw.opentypora` 是两个互不相通的库，连 origin hash 目录名
-  都不同（`li24c…` vs `83s0l0…`）。所以在全新装置上 `migrateLocalKeys()` 永远扫不到
-  `typora.*` —— README 原先那句「**旧数据会自动接上**」不成立，已改成「同一个数据目录里的
-  旧键会在首启改名」，并在已知限制里写明跨 bundle id 要自己抄 `localstorage.sqlite3` 的行。
-- 搬运按 BLOB 整块拷、不解析再序列化，绕开 UTF-16 编码来回转；迁前迁后各留一份 sqlite 备份。
-- 校验：迁移后 `opentypora.prefs` 896 字节 / 29 个键、JSON 可解析，自定义背景色、字体、
-  行距与 `exportCmds` 全部到位；`opentypora.recent/session/theme` 没被旧值覆盖。
-- 顺手把 `docs/exports/` 三份样例按新 README 重导：`.tex` 52 KB（以 `\end{document}` 收尾）、
-  `.docx` 1.09 MB（`media 4 / warn 0`）、`.epub` 109 KB。
-
-回归：`node test/runall.js` → **3318/3318**（57 个套件，无代码改动）。
-
----
-
 ## 核对方法
 
-- 逐条比对官方功能页：Markdown Reference、File Management、Search、Images、Export、
-  Code Fences、Table Editing、Outline、Word Count、Auto Pair、SmartyPants、Zoom、Strict Mode。
-- 代码侧用 Grep 确认能力是否存在（如 `root-url` 全仓库仍无命中）。
-- 语法侧用 Node 直接调 `MD.parse` + `renderBlock` 验证真实渲染，而不是看 README 声明。
+- 按领域逐个功能点核：A 语法、B 编辑、C 文件与侧边栏、D 图片、E 导出/导入、
+  F 外观、G 系统集成。
+- 代码侧用 Grep 确认能力是否真的落地（而不是只看 README 声明）。
+- 语法侧用 Node 直接调 `MD.parse` + `renderBlock` 验证真实渲染。
 - UI 侧用 `test/*.test.js` 生成 harness，交给 `build/shot`（WKWebView）实跑断言。
 - 原生进程执行这类测不到的，用等价的 Swift 片段实跑验证（退出码 127 / 输出目录不存在 /
   两万行输出不阻塞 / stdout 可读回）。
-- 回归：`node test/runall.js` → 3318/3318（57 个套件）。
+- 回归：`node test/runall.js` → 3316/3316（57 个套件）。
