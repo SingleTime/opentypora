@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="github">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenTypora</title>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar">
+      <div class="side-tabs">
+        <button class="side-tab active" data-panel="files">文件树</button>
+        <button class="side-tab" data-panel="outline">大纲</button>
+        <button class="side-tab" data-panel="articles">文章</button>
+        <button class="side-tab" data-panel="recent">最近</button>
+      </div>
+      <div class="side-body">
+        <div id="panel-files" class="panel active">
+          <div class="folder-head">
+            <span id="folder-name" title="未打开文件夹">未打开文件夹</span>
+            <button id="btn-open-folder" class="icon-btn" title="打开文件夹">＋</button>
+          </div>
+          <div id="tree" class="tree"></div>
+        </div>
+        <div id="panel-outline" class="panel">
+          <div class="panel-bar">
+            <input id="outline-q" class="mini-input" type="text" placeholder="筛选标题" spellcheck="false" autocomplete="off">
+          </div>
+          <div id="outline" class="outline"></div>
+        </div>
+        <div id="panel-articles" class="panel">
+          <div class="panel-bar">
+            <select id="art-sort" class="mini-select" title="排序">
+              <option value="mtime">按修改时间</option>
+              <option value="name">按名称</option>
+              <option value="size">按大小</option>
+            </select>
+            <select id="art-group" class="mini-select" title="分组">
+              <option value="none">不分组</option>
+              <option value="folder">按文件夹</option>
+            </select>
+          </div>
+          <div id="articles" class="articles"></div>
+        </div>
+        <div id="panel-recent" class="panel">
+          <div class="panel-bar"><span class="panel-hint">最近打开</span>
+            <button id="recent-clear" class="mini-btn">清空</button></div>
+          <div id="recent" class="recent"></div>
+        </div>
+      </div>
+      <div class="side-foot">
+        <button id="btn-open-file" class="side-action" title="打开文件 (⌘O)">打开文件</button>
+      </div>
+    </aside>
+
+    <main id="main">
+      <div id="tabbar" class="tabbar" hidden>
+        <div id="tab-list" class="tab-list" role="tablist" aria-label="打开的文档"></div>
+        <button id="tab-add" class="tab-add" type="button" title="新建标签页 (⌘T)" aria-label="新建标签页">＋</button>
+      </div>
+      <div id="editor-scroll">
+        <div id="editor" class="editor" spellcheck="false"></div>
+        <pre id="source-hl" class="source-hl" aria-hidden="true" hidden></pre>
+        <textarea id="source-area" spellcheck="false" wrap="soft" autocomplete="off"></textarea>
+      </div>
+
+      <section id="split-view" class="split-view" hidden>
+        <div id="split-left" class="split-pane split-left">
+          <div class="split-bar">
+            <span class="split-tag">Markdown</span>
+            <span id="split-pos" class="split-pos">行 1 · 列 1</span>
+            <button id="split-wrap" class="split-mini on" title="软换行（关闭后显示行号，长行横向滚动）">换行</button>
+          </div>
+          <div id="split-code" class="split-code wrap">
+            <div id="split-gutter" class="split-gutter" aria-hidden="true">
+              <div id="split-gutter-inner" class="split-gutter-inner">1</div>
+            </div>
+            <textarea id="split-src" spellcheck="false" wrap="soft" autocomplete="off"
+                      autocapitalize="off" autocorrect="off"></textarea>
+          </div>
+        </div>
+
+        <div id="split-divider" class="split-divider" role="separator" aria-label="拖动调整分栏比例"></div>
+
+        <div class="split-pane split-right">
+          <div class="split-bar">
+            <span class="split-tag">预览</span>
+            <label class="split-sync" title="滚动一侧时另一侧跟随">
+              <input type="checkbox" id="split-sync" checked><span>同步滚动</span>
+            </label>
+          </div>
+          <div id="split-prev" class="split-prev">
+            <div id="split-prev-inner" class="editor"></div>
+          </div>
+        </div>
+      </section>
+
+      <div id="statusbar">
+        <div class="sb-left">
+          <button id="btn-sidebar" class="icon-btn" title="侧边栏">☰</button>
+          <span id="sb-path" class="sb-path">未命名.md</span>
+        </div>
+        <div class="sb-right">
+          <button id="tb-split" class="chip" title="分栏：源码 + 实时预览 (⌘⇧L)">分栏</button>
+          <button id="tb-source" class="chip" title="源码模式 (⌘/)">&lt;/&gt;</button>
+          <button id="tb-focus" class="chip" title="专注模式">专注</button>
+          <button id="tb-typewriter" class="chip" title="打字机模式">打字机</button>
+          <select id="theme-select" class="chip select" title="主题">
+            <option value="github">GitHub</option>
+            <option value="night">Night</option>
+            <option value="newsprint">Newsprint</option>
+            <option value="pixyll">Pixyll</option>
+          </select>
+          <button id="tb-export" class="chip" title="导出（HTML / PDF / Word / ePub / LaTeX）">导出 &#9662;</button>
+          <span id="sb-count" class="sb-count">0 字</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="sel-bar" class="sel-bar" aria-hidden="true">
+    <button id="sel-translate" class="sel-btn no-blur" title="用 macOS 本地翻译（⌘⇧Y）">
+      <span class="sel-glyph">译</span><span class="sel-label">翻译</span>
+    </button>
+  </div>
+
+  <div id="tr-panel" class="tr-panel" aria-hidden="true">
+    <div class="tr-head">
+      <span class="tr-title">本地翻译</span>
+      <select id="tr-target" class="tr-target no-blur" title="目标语言">
+        <option value="zh-Hans">中文（简体）</option>
+        <option value="zh-Hant">中文（繁體）</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="es">Español</option>
+        <option value="pt">Português</option>
+        <option value="it">Italiano</option>
+        <option value="ru">Русский</option>
+        <option value="ar">العربية</option>
+      </select>
+      <button id="tr-close" class="tr-x no-blur" title="关闭">✕</button>
+    </div>
+    <div id="tr-src" class="tr-src"></div>
+    <div id="tr-out" class="tr-out"></div>
+    <div class="tr-foot">
+      <span class="tr-note" id="tr-note">Apple 本地翻译 · 文本不离开本机</span>
+      <div class="tr-actions">
+        <button id="tr-copy" class="tr-btn no-blur">复制</button>
+        <button id="tr-insert" class="tr-btn no-blur">插入下方</button>
+        <button id="tr-replace" class="tr-btn primary no-blur">替换原文</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="findbar" class="findbar" aria-hidden="true" role="search">
+    <div class="fb-row">
+      <input id="fb-q" class="fb-input" type="text" placeholder="查找" spellcheck="false" autocomplete="off">
+      <span id="fb-count" class="fb-count"></span>
+      <button id="fb-prev" class="fb-btn" title="上一个匹配 (⇧⏎)">↑</button>
+      <button id="fb-next" class="fb-btn" title="下一个匹配 (⏎)">↓</button>
+      <button id="fb-case" class="fb-btn fb-toggle" title="区分大小写">Aa</button>
+      <button id="fb-word" class="fb-btn fb-toggle" title="全词匹配">⌷</button>
+      <button id="fb-regex" class="fb-btn fb-toggle" title="正则表达式">.*</button>
+      <button id="fb-close" class="fb-btn fb-x" title="关闭 (Esc)">✕</button>
+    </div>
+    <div class="fb-row fb-row-replace" id="fb-replace-row" hidden>
+      <input id="fb-r" class="fb-input" type="text" placeholder="替换为" spellcheck="false" autocomplete="off">
+      <button id="fb-rep" class="fb-btn fb-act" title="替换当前 (⌘⏎)">替换</button>
+      <button id="fb-repall" class="fb-btn fb-act" title="全部替换 (⌘⌥⏎)">全部替换</button>
+    </div>
+  </div>
+
+  <div id="prefs" class="prefs" aria-hidden="true">
+    <div class="prefs-box" role="dialog" aria-label="偏好设置">
+      <div class="prefs-head">
+        <span>偏好设置</span>
+        <button id="prefs-close" class="fb-btn fb-x" title="关闭 (Esc)">✕</button>
+      </div>
+      <div class="prefs-body">
+        <div class="prefs-group">外观</div>
+        <div class="prefs-row">
+          <label for="prefs-theme">主题</label>
+          <select id="prefs-theme" class="prefs-select"></select>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-follow">跟随系统外观</label>
+          <input id="prefs-follow" type="checkbox" class="prefs-check">
+          <span class="prefs-note">系统切到深色时自动用 Night 主题</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-size">正文字号</label>
+          <input id="prefs-size" type="range" min="13" max="21" step="0.5">
+          <span id="prefs-size-val" class="prefs-val">15.5</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-width">正文宽度</label>
+          <input id="prefs-width" type="range" min="620" max="1200" step="10">
+          <span id="prefs-width-val" class="prefs-val">830</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-font">正文字体</label>
+          <select id="prefs-font" class="prefs-select"></select>
+        </div>
+        <div class="prefs-row" id="prefs-font-row">
+          <label for="prefs-font-custom">字体族</label>
+          <input id="prefs-font-custom" class="prefs-text" type="text"
+                 placeholder="'Songti SC', Georgia, serif" spellcheck="false">
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-leading">行距</label>
+          <input id="prefs-leading" type="range" min="1.3" max="2.4" step="0.02">
+          <span id="prefs-leading-val" class="prefs-val">1.72</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-bg">背景色</label>
+          <input id="prefs-bg" class="prefs-color" type="color" value="#ffffff">
+          <button id="prefs-bg-reset" class="prefs-btn" type="button">跟随主题</button>
+          <span class="prefs-note">不影响代码块与侧边栏</span>
+        </div>
+
+        <div class="prefs-group">编辑</div>
+        <div class="prefs-row">
+          <label for="prefs-autosave">自动保存</label>
+          <input id="prefs-autosave" type="checkbox" class="prefs-check">
+          <span class="prefs-note">已命名文件改动 0.7 秒后写盘</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-spell">拼写检查</label>
+          <input id="prefs-spell" type="checkbox" class="prefs-check">
+          <span class="prefs-note">使用系统拼写检查（红波浪线）</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-autopair">自动配对</label>
+          <input id="prefs-autopair" type="checkbox" class="prefs-check">
+          <span class="prefs-note">括号、引号、反引号、强调符号自动补齐</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-smart">智能标点</label>
+          <input id="prefs-smart" type="checkbox" class="prefs-check">
+          <span class="prefs-note">弯引号、"– / —"、省略号（代码片段内不转换）</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-live">行内实时预览</label>
+          <input id="prefs-live" type="checkbox" class="prefs-check">
+          <span class="prefs-note">编辑时把 ** 之类的标记藏起来，光标移到那一段才露出来（代码、链接、公式、多行段落仍显示源码）</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-lineno">代码块行号</label>
+          <input id="prefs-lineno" type="checkbox" class="prefs-check">
+          <span class="prefs-note">在代码块左侧显示行号</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-zoom">视图缩放</label>
+          <input id="prefs-zoom" type="range" min="80" max="200" step="10">
+          <span id="prefs-zoom-val" class="prefs-val">100%</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-imgcenter">图片居中</label>
+          <input id="prefs-imgcenter" type="checkbox" class="prefs-check">
+          <span class="prefs-note">独立成段的图片水平居中显示</span>
+        </div>
+        <div class="prefs-row">
+          <label for="prefs-strict">严格模式</label>
+          <input id="prefs-strict" type="checkbox" class="prefs-check">
+          <span class="prefs-note">按 GFM 规范严格解析：<code>#</code> 后必须有空格，列表续行/子列表必须对齐内容列；
+            同时关掉高亮、上下标、Emoji、笔记链接、Callout 等扩展</span>
+        </div>
+
+        <div class="prefs-group">文本片段（Text Snippet）</div>
+        <div class="prefs-row prefs-col">
+          <span class="prefs-note">一行一条：<code>触发词 =&gt; 内容</code>。内容里 <code>\n</code> 换行、
+            <code>\t</code> 制表符、<code>$0</code> 指定光标落点；<code>#</code> 开头是注释。
+            在编辑器里敲触发词后按 <b>Tab</b> 展开。</span>
+          <textarea id="prefs-snippets" class="prefs-area" spellcheck="false" rows="6"
+            placeholder="sig => 此致\n敬礼\n\n$0&#10;brb => be right back"></textarea>
+        </div>
+
+        <div class="prefs-group">自定义导出命令</div>
+        <div class="prefs-row prefs-col">
+          <span class="prefs-note">命令交给 <code>/bin/sh</code> 执行，可用占位符：
+            <code>{src}</code> 当前文档（临时 .md）、<code>{out}</code> 输出文件（保存面板选定）、
+            <code>{name}</code> 文档主名、<code>{dir}</code> 文档所在目录、<code>{ext}</code> 扩展名。
+            命令会原样执行，只添加你自己信任的命令。</span>
+          <div id="xcmd-list" class="xcmd-list"></div>
+        </div>
+        <div class="prefs-row prefs-actions">
+          <button id="xcmd-add" class="prefs-btn">添加命令</button>
+          <button id="xcmd-pandoc" class="prefs-btn">填入 pandoc 预设</button>
+        </div>
+
+        <div class="prefs-group">自定义主题</div>
+        <div class="prefs-row prefs-col">
+          <span class="prefs-note">把 <code>*.css</code> 放进主题目录，重新扫描后会出现在上面的主题列表里。
+            CSS 会叠加在内置主题之上，用 <code>:root { --bg: …; --text: …; }</code> 覆盖变量即可。</span>
+          <span id="prefs-themedir" class="prefs-path">—</span>
+        </div>
+        <div class="prefs-row prefs-actions">
+          <button id="prefs-openthemes" class="prefs-btn">打开主题文件夹</button>
+          <button id="prefs-reloadthemes" class="prefs-btn">重新扫描</button>
+          <button id="prefs-reset" class="prefs-btn">恢复默认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="wc-pop" class="wc-pop" aria-hidden="true">
+    <div class="wc-row"><span>字</span><b id="wc-words">0</b></div>
+    <div class="wc-row"><span>字符</span><b id="wc-chars">0</b></div>
+    <div class="wc-row"><span>行</span><b id="wc-lines">0</b></div>
+    <div class="wc-row"><span>段落</span><b id="wc-paras">0</b></div>
+    <div class="wc-row"><span>阅读时间</span><b id="wc-time">0 分钟</b></div>
+    <div class="wc-row wc-sel"><span>选区</span><b id="wc-sel">—</b></div>
+  </div>
+
+  <div id="palette" class="ovl" aria-hidden="true">
+    <div class="ovl-box">
+      <input id="palette-q" class="ovl-input" type="text" placeholder="跳到文件（模糊搜索）" spellcheck="false" autocomplete="off">
+      <div id="palette-list" class="ovl-list"></div>
+    </div>
+  </div>
+
+  <div id="gsearch" class="ovl" aria-hidden="true">
+    <div class="ovl-box gs-box">
+      <input id="gs-q" class="ovl-input" type="text" placeholder="在整个文件夹里搜索（⌘⇧F）" spellcheck="false" autocomplete="off">
+      <div class="gs-opts">
+        <button id="gs-case" class="fb-btn fb-toggle" title="区分大小写">Aa</button>
+        <button id="gs-word" class="fb-btn fb-toggle" title="全词匹配">⌷</button>
+        <button id="gs-regex" class="fb-btn fb-toggle" title="正则">.*</button>
+        <span id="gs-count" class="gs-count"></span>
+      </div>
+      <div id="gs-list" class="ovl-list gs-list"></div>
+    </div>
+  </div>
+
+  <div id="ctxmenu" class="ctxmenu" aria-hidden="true"></div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="vendor/katex/katex.min.js"></script>
+  <script src="js/md.js"></script>
+  <script src="js/inline.js"></script>
+  <script src="js/snippet.js"></script>
+  <script src="js/emoji.js"></script>
+  <script src="js/zip.js"></script>
+  <script src="js/yaml.js"></script>
+  <script src="js/xcmd.js"></script>
+  <script src="js/code.js"></script>
+  <script src="js/dropfile.js"></script>
+  <script src="js/docx.js"></script>
+  <script src="js/odt.js"></script>
+  <script src="js/textfmt.js"></script>
+  <script src="js/infmt.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/doc.js"></script>
+  <script src="js/diagram.js"></script>
+  <script src="js/flow.js"></script>
+  <script src="js/fnpop.js"></script>
+  <script src="js/wikilink.js"></script>
+  <script src="js/workbench.js"></script>
+  <script src="js/imgman.js"></script>
+  <script src="js/bridge.js"></script>
+  <script src="js/caret.js"></script>
+  <script src="js/spell.js"></script>
+  <script src="js/typography.js"></script>
+  <script src="js/tabs.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/srcmode.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/split.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>

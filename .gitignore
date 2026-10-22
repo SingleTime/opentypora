@@ -1,0 +1,13 @@
+# 构建产物（./build.sh 生成）
+build/
+
+# 测试与演示生成的 harness 页，每次跑测试都会重建
+app/__*.html
+
+# 本仓库没有 npm 依赖，防止误提交
+node_modules/
+
+# 系统与编辑器垃圾
+.DS_Store
+*.swp
+*.log

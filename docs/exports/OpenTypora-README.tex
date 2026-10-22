@@ -1,0 +1,1063 @@
+% 由 OpenTypora 导出。中文排版请用 XeLaTeX 编译：
+
+%   xelatex document.tex
+
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage[margin=2.5cm]{geometry}
+
+\usepackage{graphicx}
+
+\usepackage{xcolor}
+
+\usepackage[normalem]{ulem}
+
+\usepackage{amssymb}
+
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+\setlength{\parindent}{0pt}
+
+\setlength{\parskip}{0.6em}
+
+\date{}
+
+\begin{document}
+
+\section{OpenTypora}
+
+\begin{quote}
+原名「Typora（自研克隆版）」，为避免与商业软件重名改成 \textbf{OpenTypora}。 功能目标没变：对齐 Typora 1.14 的行为，front matter 里的 \texttt{typora-*} 键 （\texttt{typora-copy-images-to} / \texttt{typora-root-url}）保持兼容 —— 那些是文档格式约定， 改了就不认别人的文档了。 改名涉及的外部标识：bundle id \texttt{local.fw.opentypora}、可执行文件 \texttt{OpenTypora.app/Contents/MacOS/OpenTypora}、命令行 \texttt{opentypora}、 窗口标题与菜单栏都叫 OpenTypora。\textbf{旧数据会自动接上}：\texttt{localStorage} 里 \texttt{typora.*} 的偏好与会话首启搬到 \texttt{opentypora.*}。目录只用自己的—— 用户主题目录固定是 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}， 不读也不写真 Typora 的目录。
+\end{quote}
+
+从零实现的 Markdown 编辑器：块级所见即所得（WYSIWYG）、分栏「边写边看」、无损序列化、
+原生文件读写、多标签页、macOS 本地翻译、KaTeX 公式、Mermaid 图表、工作区搜索、
+内置导出（Word / ODT / ePub / LaTeX / RTF / RST / MediaWiki / Textile / OPML / RevealJS /
+PDF / 图片 / HTML）与导入（Word / ODT / ePub / HTML / RST / LaTeX）。
+AppKit + WKWebView 原生外壳，前端纯 HTML/CSS/JS，唯一第三方依赖是内置的
+mermaid.min.js（3.4 MB，按需加载）与 KaTeX 0.19（0.64 MB，含 20 个 woff2 字体），
+产物约 5.8 MB。
+
+\subsection{截图}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{浅色（多标签页）} & \textbf{夜间} \\
+\hline
+\includegraphics[width=0.9\linewidth,keepaspectratio]{docs/opentypora-tabs.png} & \includegraphics[width=0.9\linewidth,keepaspectratio]{docs/opentypora-tabs-night.png} \\
+\hline
+\end{tabular}
+\end{center}
+
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{行内实时预览（标记不在 DOM 里）} & \textbf{夜间} \\
+\hline
+\includegraphics[width=0.9\linewidth,keepaspectratio]{docs/opentypora-live.png} & \includegraphics[width=0.9\linewidth,keepaspectratio]{docs/opentypora-live-night.png} \\
+\hline
+\end{tabular}
+\end{center}
+
+
+\subsection{目录结构}
+
+\begin{verbatim}
+opentypora/
+├── app/                  前端（会被打进 .app 的 Resources/app）
+│   ├── index.html
+│   ├── css/app.css       版式 + 6 套主题（GitHub / Night / Newsprint / Pixyll / Whitey / Gothic）
+│   ├── vendor/
+│   │   ├── mermaid.min.js  内置 Mermaid 11（只在出现 ```mermaid 时才注入加载）
+│   │   └── katex/        内置 KaTeX 0.19（js + css + 20 个 woff2，离线渲染公式）
+│   └── js/
+│       ├── md.js         解析+渲染核心（纯函数，无 DOM 依赖，可 Node 单测；含严格模式开关）
+│       ├── inline.js     行内 token 化（导出用：保留公式原文，不套 HTML 再反解；跟随严格模式）
+│       ├── emoji.js      `:名字` 补全下拉（打分/触发判定/代码域识别/插入字形）
+│       ├── snippet.js    文本片段（解析/序列化/按触发词展开，含 `$0` 光标落点）
+│       ├── zip.js        最小 ZIP 写入器（store 模式，零依赖；docx/epub 的底座）
+│       ├── docx.js       Markdown → OOXML（标题/表格/脚注/图片/目录域）
+│       ├── importer.js   .docx / .html → Markdown（自写标记解析器 + OOXML 语义映射）
+│       ├── export.js     ePub 3 + LaTeX + RevealJS 生成器，以及各格式分发（含 HTML 导出选项与导出主题）
+│       ├── doc.js        文档级装饰：标题锚点 / [TOC] 目录 / 脚注编号
+│       ├── diagram.js    Mermaid 图表：懒加载 / 主题重绘 / 失败降级
+│       ├── flow.js       flowchart.js：解析 / 回边剔除 / DAG 分层 / 正交走线 / 出 SVG（零依赖）
+│       ├── editor.js     块级编辑引擎（源码态切换/光标映射/撤销栈/自动配对/智能标点）
+│       ├── table.js      表格结构编辑（行列手柄/右键菜单/单元格原位编辑/插入对话框/列宽拖拽/拖动排序）
+│       ├── fnpop.js      脚注角标悬停预览（浮层复用定义块 DOM）
+│       ├── wikilink.js   wiki 链接：`[[` 选单、坏链标记
+│       ├── split.js      分栏模式（左源码/右实时预览/同步滚动）
+│       ├── workbench.js  工作区（Open Quickly / 全局搜索 / 最近文件 / 文章视图 / 文件树右键 / 草稿）
+│       ├── imgman.js     图片管理（插入 / 重命名 / 移动 / 删除 / root-url 路径换算 / 下载远程图）
+│       ├── yaml.js       front matter 读取与「导出覆盖」归一化（title/toc/papersize/geometry…）
+│       ├── xcmd.js       自定义导出命令：占位符展开 / 程序名提取 / 校验 / 归一化
+│       ├── code.js       代码块 Code Tools：自动缩进 / 行注释 / 移行 / Tab 缩进 / 复制为 HTML
+│       ├── odt.js        OpenDocument 文本生成（content.xml / styles.xml / Pictures）
+│       ├── textfmt.js    RTF / reStructuredText / MediaWiki / Textile / OPML 生成
+│       ├── infmt.js      ODT / reStructuredText / LaTeX → Markdown
+│       ├── caret.js      光标行的几何：镜像量位置、按行居中、专注模式近邻
+│       ├── spell.js      渲染态拼写：切词 / 批量问系统词典 / 波浪线 / 右键建议
+│       ├── typography.js 版式三件套：字体预设 / 行距归一化 / 背景色 → CSS 变量表
+│       ├── srcmode.js   源码模式的行号 + 高亮层（textarea 透明字 + <pre> 逐行画）
+│       ├── tabs.js       多标签页状态机（增删/关闭后激活谁/循环切换/未命名编号/会话序列化，纯函数）
+│       ├── live.js       行内实时预览的纯逻辑（能不能 live / 标记区间 / 该露哪几段 / 编辑差分 / 前缀种类）
+│       ├── ui.js         侧边栏/大纲/状态栏/标签栏/快捷键/文件操作/导出菜单
+│       └── bridge.js     原生桥（无原生环境时优雅降级）
+├── native/
+│   ├── main.swift        AppKit 壳：窗口/菜单/文件对话框/导出 PDF·图片/打印
+│   ├── translate.swift   macOS 本地翻译（Translation.framework，离线）
+│   ├── pdfbook.swift     PDF 书签（按标题生成 outline，排除目录页、折行归一）
+│   ├── webexport.swift   单页 HTML 的样式注入（app.css 先、自定义主题后）
+│   ├── spell.swift       系统词典桥（NSSpellChecker 批量判定 + 建议词，串行后台队列）
+│   ├── makeicon.swift    生成应用图标（icns）
+│   └── Info.plist
+├── bin/opentypora        命令行入口（文件/目录/`-` 读 stdin/`-v`/`-h`）
+├── install-cli.sh        把 CLI 装进 PATH（默认 /usr/local/bin）
+├── test/
+│   ├── parser.test.js    121 项解析器单测（node test/parser.test.js）
+│   ├── harness.html      23 项引擎集成测试（真实 WebView 运行时）
+│   ├── translate.test.js 翻译功能 42 项集成测试（注入 mock 桥，DEMO=1 出演示截图）
+│   ├── split.test.js     分栏模式 23 项集成测试（注入 mock 桥，真实 WebView 运行）
+│   ├── selbar.test.js    翻译浮标定位 32 项集成测试（分栏/源码/跨行选区坐标）
+│   ├── find.test.js      查找替换 33 项集成测试（计数/跳转/替换/撤销/三种视图）
+│   ├── prefs.test.js     偏好设置与自定义主题 30 项集成测试
+│   ├── doc.test.js       目录/锚点/脚注 46 项集成测试（含样式与分栏一致性）
+│   ├── mermaid.test.js   图表 27 项集成测试（渲染/缓存/换主题/坏图降级/分栏/导出）
+│   ├── math.test.js      公式 21 项集成测试（displayMode/矩阵/错误降级/字体/分栏/深色）
+│   ├── table.test.js     表格编辑 46 项集成测试（增删行列/对齐/菜单/手柄/撤销）
+│   ├── table.demo.js     表格编辑演示页（出手柄态与菜单态两张图）
+│   ├── math.demo.js      公式演示页（出 docs/opentypora-math.png）
+│   ├── image.demo.js     图片尺寸演示页（出 docs/opentypora-image.png）
+│   ├── html.test.js      HTML 块 43 项集成测试（判块/渲染/消毒/源码态/分栏/导出）
+│   ├── note.test.js      脚注浮层 + wiki 链接 41 项集成测试
+│   ├── note.demo.js      笔记链接演示页（出 docs/opentypora-note.png / -pick.png）
+│   ├── import.test.js    导入 33 项单测（Word 风格 deflate docx / HTML / 往返 / GBK）
+│   ├── epub.test.js      ePub 导入 22 项单测（spine 顺序 / 图片出包 / 脚注 / deflate）
+│   ├── reveal.test.js    RevealJS 36 项单测（分页规则 / 目录 / 图片内嵌 / 降级）
+│   ├── importweb.test.js 导入 26 项集成测试（WebKit 解压 + UI 入口 + 资源落盘载荷）
+│   ├── import.demo.js    导入演示页（出 docs/opentypora-import.png）
+│   ├── fixtures.js       导入测试共用的 docx / HTML 样本（deflate 打包）
+│   ├── html.demo.js      HTML 块演示页（渲染态与源码态两张图）
+│   ├── runall.js         一键全量回归（node test/runall.js）
+│   ├── export.test.js    导出引擎 48 项单测（zip/docx/epub/latex + 真实文件校验）
+│   ├── exportopts.test.js 导出选项 28 项单测（PDF 纸张/边距夹取、图片格式归一）
+│   ├── exportui.test.js  导出菜单与 HTML 选项 106 项集成测试（Bridge 载荷校验）
+│   ├── export.demo.js    导出菜单演示页（出 docs/opentypora-export.png）
+│   ├── strict.test.js    严格模式/Emoji 补全/Text Snippet/表格拖动/HTML 选项 102 项单测
+│   ├── edit2.test.js     同上五项的真实 WebView 集成 53 项测试
+│   ├── edit2.demo.js     第六轮演示页（出 docs/opentypora-edit2/-strict/-snippet.png）
+│   ├── strictparse.test.js 严格模式解析侧 52 项单测（官方文档每条示例 + 往返无损）
+│   ├── flow.test.js      flowchart.js 58 项单测（解析/分层/走线不变量/错误行号）
+│   ├── flowdom.test.js   flowchart 真实 WebView 集成 30 项（渲染/换主题/源码态/导出）
+│   ├── flow.demo.js      flowchart 演示页（出 docs/opentypora-flow.png）
+│   ├── fsundo.test.js    文件操作撤销 31 项单测（内存 FS + 逆操作栈语义/失败路径/上限）
+│   ├── fsundodom.test.js 文件操作撤销 41 项集成测试（右键菜单 → toast 撤销按钮）
+│   ├── yaml.test.js      front matter 解析与覆盖归一化 84 项单测
+│   ├── exportyaml.test.js YAML 覆盖导出 37 项单测（LaTeX/docx/epub/odt/reveal 六出口 + HTML 片段）
+│   ├── xcmd.test.js      自定义导出命令 57 项单测（占位符/程序名/校验/归一化）
+│   ├── xcmddom.test.js   自定义导出命令 45 项集成测试（偏好编辑 → 菜单 → Bridge 载荷）
+│   ├── code.test.js      代码块 Code Tools 110 项单测（缩进/注释/移行/抹平噪声/改写语言）
+│   ├── highlight.test.js 语法高亮 135 项单测（32 套词法 / 往返无损 / 别名 / 边角）
+│   ├── highlight.demo.js 语法高亮演示页（出 docs/opentypora-highlight.png 与 -night.png）
+│   ├── srcmode.test.js   源码模式高亮层 90 项单测（结构/转义/围栏/桩对象 attach）
+│   ├── srcmodedom.test.js 源码模式 47 项集成测试（两层文字左起点/行高节奏/滚动同步/sticky 行号）
+│   ├── caret.test.js     光标行几何 57 项（行号/区间/居中量/夹边界/近邻/接线/CSS）
+│   ├── caredom.test.js   光标行 34 项集成（软换行测量、按行居中、高亮条位置、近邻切换）
+│   ├── caret.demo.js     专注 + 打字机演示页（出 docs/opentypora-focus-typewriter*.png）
+│   ├── spell.test.js     拼写 126 项（切词/分段/替换定位/接线 + 编译并跑 Swift 真词典断言）
+│   ├── spell/main.swift  真词典的 Swift 断言程序（正确词/错拼/ignore/建议词/串行队列）
+│   ├── spelldom.test.js  拼写 49 项集成（包 span/跳过代码/偏移命中/右键替换/忽略/开关）
+│   ├── spell.demo.js     拼写波浪线与右键建议演示页（出 docs/opentypora-spell*.png）
+│   ├── typography.test.js 版式 102 项（预设表/字体清洗/行距夹取/背景归一化/变量表/导出接线）
+│   ├── typodom.test.js   版式 59 项集成（真 WKWebView：计算样式、换主题、恢复默认、导出）
+│   ├── typo.demo.js      版式演示页（出 docs/opentypora-typography*.png）
+│   ├── srcmode.demo.js   源码模式演示页（出 docs/opentypora-source-code.png 与 -night.png）
+│   ├── pdfbook.test.js   PDF 书签 51 项（前端 pdfOutline + 编译并跑 Swift 真 PDF 断言）
+│   ├── pdfbook/main.swift PDF 书签的 Swift 断言程序（造 PDF → 挂 outline → 读回验）
+│   ├── htmltheme.test.js  导出主题 75 项（主题归一化 / 与 app.css 对齐 / 编译并跑 Swift 注入断言）
+│   ├── htmltheme/main.swift 样式注入的 Swift 断言程序（位置/顺序/转义/缺 </head> 兜底）
+│   ├── htmlthemedom.test.js 导出主题 27 项集成（srcdoc 里量计算样式与滚动）
+│   ├── htmltheme.demo.js  导出主题演示页（出 docs/opentypora-html-theme*.png）
+│   ├── codemod.test.js   代码块 Code Tools 47 项集成测试（右键菜单 / ⌘/ / Tab / 剪贴板）
+│   ├── code.demo.js      代码块 Code Tools 演示页（出 docs/opentypora-code-tools.png）
+│   ├── dropfile.test.js  拖文件插链接 33 项单测（路径抠取/三档退化/链接转义）
+│   ├── dropdom.test.js   拖文件 / 贴图 27 项集成测试（相对路径/复制进 assets/copy-to 目录/⌥ 打开/源码态）
+│   ├── recentdom.test.js 最近文件固定 26 项集成测试（图钉渲染/置顶/落盘/取消/清空）
+│   ├── recent.demo.js    最近文件固定演示页（出 docs/opentypora-recent-pin.png）
+│   ├── tabs.test.js      标签页状态机 96 项单测（增删/复用/关闭后激活谁/循环/命名/上限/会话序列化）
+│   ├── tabsdom.test.js   标签页 92 项集成测试（真 WKWebView：⌘T/⌘W/⌃⇥、现场还原、撤销跨页、会话还原）
+│   ├── tabs.demo.js      标签页演示页（出 docs/opentypora-tabs.png 与 -night.png）
+│   ├── live.test.js      行内实时预览 87 项单测（能不能 live / 标记区间 / 露出规则 / 差分 / 前缀种类）
+│   ├── livedom.test.js   行内实时预览 76 项集成测试（真 WKWebView：藏标记、光标进去现身、打字落回原文、退回 textarea）
+│   ├── live.demo.js      行内实时预览演示页（出 docs/opentypora-live.png 与 -night.png）
+│   ├── syntax2.test.js   扩展语法 50 项单测（引用式链接/裸 URL/上下标/Emoji/行内 HTML/Callout）
+│   ├── workbench.test.js 工作区纯函数 43 项单测（模糊匹配/文章分组/相对路径/时间格式/最近文件固定）
+│   ├── cli.test.js       命令行 15 项检查（--help/--version/错误码/语法）
+│   ├── bench.js          导出链路性能基准（Node / WKWebView 共用）
+│   ├── bench.node.js     基准入口：`node test/bench.node.js`，出各阶段耗时
+│   ├── native-smoke.swift 原生翻译链路冒烟测试
+│   ├── native-reuse.swift 原生会话复用 / 同语言短路验证（真实翻译）
+│   └── shot.swift        离屏截图工具（自检 UI 用）
+├── build.sh              一键构建：图标 → 编译 → 组装 bundle → ad-hoc 签名
+└── docs/                 验证截图 + exports/（README 导出的 docx / epub / tex 样例）
+\end{verbatim}
+
+\subsection{构建与安装}
+
+要求：macOS（已在 14/15 上验证）、Xcode Command Line Tools（要 \texttt{swiftc}）。没有 npm 依赖，
+也不需要 Xcode 工程文件。
+
+\begin{verbatim}
+git clone git@github.com:SingleTime/opentypora.git
+cd opentypora
+./build.sh
+cp -R build/OpenTypora.app /Applications/
+\end{verbatim}
+
+跑测试：
+
+\begin{verbatim}
+node test/runall.js          # 57 个套件，3318 项全绿；DOM 套件需要 build/shot
+\end{verbatim}
+
+\subsection{核心设计}
+
+\begin{itemize}
+\item \textbf{块级 WYSIWYG}：文档 = \texttt{blocks[\{raw\}] + gaps[]} 模型。光标进入某块时该块变成
+可编辑面 —— 能走 live preview 的块直接是\textbf{渲染态}（\texttt{**} 之类的标记不在 DOM 里），
+其余（代码、链接、公式、行内 HTML、表格、多行段落）切成 \texttt{\textless{}textarea\textgreater{}} 源码态；
+失焦即回渲染态。行内文本片段携带 \texttt{data-s} 偏移，点击渲染内容可精确映射回源码光标位置。
+\item \textbf{无损往返}：块间间隔（空行数量）作为 \texttt{gaps} 显式保存，\texttt{serialize(parse(src)) === src}
+字节级一致，不会偷偷改用户的文件。
+\item \textbf{撤销}：文档级快照栈（300 步，800ms 内连续输入合并），跨块结构操作也可撤销。
+\end{itemize}
+
+
+\subsection{功能清单}
+
+\begin{itemize}
+\item 标题（ATX/Setext）、粗斜体、删除线、\texttt{==高亮==}、行内代码、链接、图片、
+引用（嵌套）、列表（嵌套/有序/任务）、表格、代码围栏（自带高亮器，
+支持 js/ts/py/java/go/rust/sql/bash/json/yaml/css/html）、YAML front matter、水平线
+\item \textbf{扩展语法}（与 Typora 对齐的那批）：
+\begin{itemize}
+\item 引用式链接 \texttt{[a][id]} / \texttt{[a][]} / \texttt{[a]} 与引用式图片 \texttt{![a][id]}；\texttt{[id]: url "title"}
+定义行作为隐藏块保留在源码里（序列化仍然字节无损），方向键跨块时自动跳过
+\item 裸 URL 与 \texttt{www.} 自动成链；尾部标点、成对括号、中英文混排都按 Typora 的边界处理，
+不会把句号或中文标点吃进 \texttt{href}
+\item 上标 \texttt{X\textasciicircum{}2\textasciicircum{}}、下标 \texttt{H\textasciitilde{}2\textasciitilde{}O}、下划线 \texttt{\textless{}u\textgreater{}}；docx 走 \texttt{vertAlign} / \texttt{\textless{}w:u\textgreater{}}，
+LaTeX 走 \texttt{\textbackslash{}textsuperscript} / \texttt{\textbackslash{}textsubscript} / \texttt{\textbackslash{}underline}
+\item 行内 HTML：\texttt{\textless{}span style\textgreater{}}、\texttt{\textless{}kbd\textgreater{}}、\texttt{\textless{}sup\textgreater{}}、\texttt{\textless{}sub\textgreater{}}、\texttt{\textless{}mark\textgreater{}}、\texttt{\textless{}br\textgreater{}} 等
+直接渲染（\texttt{on*} 与 \texttt{javascript:} 一律剥掉）；只写半截标签时按源码显示，不会吞掉后文
+\item Emoji shortcode：内置约 190 条常用映射（\texttt{:smile:} \texttt{:rocket:} \texttt{:+1:} …）
+\item Callouts：\texttt{\textgreater{} [!NOTE]} / \texttt{TIP} / \texttt{IMPORTANT} / \texttt{WARNING} / \texttt{CAUTION}，
+五种配色 + 图标 + 标题行；docx/ePub/LaTeX 导出保留标题
+\item 引用块里回车自动续 \texttt{\textgreater{} }，空引用行退出
+\end{itemize}
+\item \textbf{代码块}：行号窗（偏好项开关）、33 种语言下拉（只改首行围栏，不动正文，
+认 \texttt{js}/\texttt{py}/\texttt{sh} 这类别名）、一键复制；工具条 hover 才出现，打印与导出图片时自动隐藏。
+\textbf{语法高亮覆盖全部 33 个下拉项}（归一成 32 套词法，\texttt{shell} 就是 \texttt{bash}）：每种语言一张
+方言表，认注释 / 多行字符串 / 数字（含 \texttt{10px} 这种带单位）/ 关键字 / 类型 / 属性名 /
+注解 / 预处理指令；\texttt{diff} 按增删行着色，\texttt{markdown} 认标题与行内标记。
+右键 \textbf{Code Tools} 八项：复制代码 / 复制为 HTML（带高亮 span）/ 复制为 Markdown /
+自动缩进整理 / 切换行注释 / 上移行 / 下移行 / 删除块；\texttt{⌘/} 切行注释、\texttt{⌥↑↓} 移行、
+块内选中多行按 \texttt{Tab} / \texttt{⇧Tab} 整段缩进。自动缩进不需要真 parser：先把字符串与注释
+抹成等长空格（长度守恒），再按净括号深度重排；Python / YAML 只规范缩进层级不改结构
+\item \textbf{表格}：单元格原位编辑（\texttt{\textless{}input\textgreater{}} 就地改，Enter 下一行 / Tab 下一列 /
+Esc 取消 / 行末自动补行）、插入表对话框（行数 × 列数）、列宽拖拽（写回分隔行，
+正文字号变化时只放大不缩小）
+\item \textbf{数学公式}：\texttt{\$行内\$} 与 \texttt{\$\$块级\$\$}（\texttt{\$\$} 独占一行的围栏写法也认），由内置
+KaTeX 0.19 排版 —— 矩阵（pmatrix/bmatrix/vmatrix/array）、多行对齐（aligned/
+align/gather）、分段函数（cases）、求和与积分的上下限（displaystyle）、极限、
+希腊字母、\texttt{\textbackslash{}text}/\texttt{\textbackslash{}mathbf} 等全部支持；语法错误显示红字并保留原文，不会把整篇
+渲染打挂。KaTeX 出 MathML + HTML 两份（屏幕阅读器与复制公式可用）
+\begin{itemize}
+\item 导出：docx/LaTeX 保留 TeX 原文（真公式对象需要 OMML 转换，暂未做）；
+ePub 用内置简化渲染（阅读器不认 KaTeX 依赖 CSS 的排版）；导出单文件 HTML 时
+把 20 个 woff2 以 data URI 内联进 CSS，公式字体不丢
+\item Node 侧没有 KaTeX 时自动退回自研 TeX 子集（单测与 ePub 走的就是这条）
+\end{itemize}
+\item \textbf{表格结构编辑}（渲染态，不用切源码）：
+\begin{itemize}
+\item 鼠标移到任意单元格，左侧浮出「+」插行、顶部浮出「+」插列；右键出完整菜单：
+上/下插行、左/右插列、删除本行/本列、改本列对齐（左/中/右/默认）、删除整张表格
+\item 表头行不允许删除；删到最后一列时整张表被移除（走 \texttt{Editor.deleteBlock}，不留空块）
+\item 改动直接写回 Markdown，并与正文共用同一套撤销栈；新列继承左侧列的对齐
+\item 序列化按\textbf{东亚宽度}补空格（CJK 算 2 格），所以含中文的表格在源码里也是齐的
+\item 单元格里的裸 \texttt{|} 会被转义成 \texttt{\textbackslash{}|}，不会把表格结构写散
+\end{itemize}
+\item \textbf{图片尺寸}：\texttt{![图](a.png =300x200)} 固定宽高、\texttt{=300} 只定宽（高按比例）、
+\texttt{=x200} 只定高（宽按比例）；路径含空格用尖括号 \texttt{\textless{}my pic.png\textgreater{}} 包起来；
+\texttt{=WxH} 可以和 \texttt{"title"} 共存。渲染、docx（EMU 换算）、ePub（\texttt{width}/\texttt{height}
+属性）、LaTeX（像素 × 0.75 → pt）四处同一套换算，宽度仍受版心封顶
+\item \textbf{HTML 块原样渲染}：\texttt{\textless{}div\textgreater{}} / \texttt{\textless{}table\textgreater{}} / \texttt{\textless{}details\textgreater{}} / \texttt{\textless{}svg\textgreater{}} / \texttt{\textless{}style\textgreater{}} 这类整块
+HTML 直接按 HTML 渲染（Typora 行为），点一下整块切回源码编辑
+\begin{itemize}
+\item 判块只认两件事：是不是容器标签、有没有配对闭合 —— \texttt{\textless{}div\textgreater{}…空行…\textless{}/div\textgreater{}} 不会被
+空行切成互不相干的三块；找不到闭合就退回「按空行截断」，不会把后文全吞掉
+\item \texttt{\textless{}script\textgreater{}} 与 \texttt{onclick} 一类事件属性渲染时剔除（文档不该能操作编辑器自己）
+\item 渲染前用浏览器的容错解析器把标签配平一遍，作者漏写 \texttt{\textless{}/div\textgreater{}} 也只影响这一块
+\item 导出：HTML 原样带过去；docx / ePub / LaTeX 里只留文字（这几种格式没有 HTML 节点）
+\end{itemize}
+\item \textbf{导入 Word / HTML}（⌘⇧I）：\texttt{.docx} 与 \texttt{.html} 直接转成本文编辑器能认的 Markdown，
+不需要 pandoc、不联网。内嵌图片会落到 \texttt{assets/\textless{}文档名\textgreater{}-media/} 并用相对路径引用
+\begin{itemize}
+\item docx：标题样式、粗斜删、行内代码（字符样式带等宽字体也认）、有序/无序/嵌套列表
+（读 \texttt{numbering.xml} 的真编号）、引用、代码块、表格（对齐 + \texttt{gridSpan} 合并补空）、
+超链接（走 \texttt{document.xml.rels}）、内嵌图片（按 \texttt{wp:extent} 换算像素）、真脚注
+\item html：标题/段落/列表/引用/代码块/表格/图片（\texttt{width}/\texttt{height} 直接变 \texttt{=WxH}），
+\texttt{\textless{}br\textgreater{}} 变硬换行；\texttt{\textless{}svg\textgreater{}}、\texttt{\textless{}details\textgreater{}} 这类 md 表达不了的整块元素原样保留成 HTML 块
+\item 判据是\textbf{语义}不是外观：Word 的 \texttt{Quote} 样式出引用（不再重复包一层斜体）、
+「空段落 + 下边框」出分隔线、字符样式带 Consolas/Menlo 的 run 才当行内代码
+\end{itemize}
+\item \textbf{目录 / 锚点 / 脚注}：
+\begin{itemize}
+\item \texttt{[TOC]} 独占一行即渲染成整篇目录，按标题层级自动嵌套；标题改名、增删、
+换文件时目录自己跟着变，导出 HTML / PDF 里也是填好的
+\item 每个标题自动获得 GitHub 风格锚点 id（中文原样保留、标点去掉、空白转 \texttt{-}，
+同名自动加 \texttt{-1}/\texttt{-2}），\texttt{[去第二章](\#第二章-安装)} 这类内链点一下就滚到目标
+并高亮闪一下，分栏预览里同样可用（在预览容器内部滚动，不会让 WebView 跳走）
+\item 脚注 \texttt{[\textasciicircum{}id]} + \texttt{[\textasciicircum{}id]: 正文}：角标按\textbf{出现顺序}自动编号（与作者写的标号无关），
+点击滚到定义；定义块支持续行与行内格式
+\item \textbf{脚注悬停预览}：鼠标停在角标上 90ms 后浮出定义正文（带粗体、行内代码、链接的
+真实排版，不是 \texttt{title} 的工具提示），鼠标移开或页面一滚就收起；浮层靠近边缘时
+自动翻到角标下方并夹在视口内
+\end{itemize}
+\item \textbf{wiki 链接}：\texttt{[[笔记名]]} 跳到另一篇笔记，\texttt{[[笔记名|显示文字]]} 换显示名，
+\texttt{[[\#小节]]} 跳本文标题
+\begin{itemize}
+\item 敲到 \texttt{[[} 就浮出笔记选单（当前文件夹里的 \texttt{.md}，子目录用相对路径区分同名），
+↑↓ 选、Enter/Tab 插入、Esc 关掉；没匹配时空格与回车都不拦，回车照常拆块
+\item 目标按「当前文档目录 → 文件夹根 → 文件树按名字找」三级解析，所以文件挪到
+子目录里也还能点开；都找不到才提示
+\item 文件树能判断时，目标不存在的链接显示成灰色虚线（\texttt{.wiki-missing}），点一下给提示
+\item 导出：HTML 保留；docx / ePub / LaTeX 只留显示文字（目标 \texttt{.md} 不在包里，
+留着会变成死链接）
+\end{itemize}
+\item \textbf{版式可调}：正文字体（系统默认 / 苹方 / 宋体 / 楷体 / 仿宋 / 圆体 / 等宽 + 自定义字体族，
+只列本机真有字形的）、行距（1.3–2.4，正文与标题同比缩放，代码块不参与以保住行号对齐）、
+背景色（可「跟随主题」一键还原）；三项都实时生效、落偏好，导出的单页 HTML 带同一组变量
+\item \textbf{行内实时预览}（偏好「编辑 → 行内实时预览」，默认开）：编辑一个块时看到的是排版结果，
+\texttt{**粗体**} 的两颗星不出现、字本身就是粗的；光标走进哪一段强调，那一对标记才现身，
+方便删改。标题的 \texttt{\#\# } 也藏，光标落到行首才露出来，退格一次去掉整个前缀、标题变回正文。
+原文仍是唯一真源：DOM 里改的每个字按「文本前后最小差异」翻回 \texttt{raw} 再重画，
+\texttt{serialize(parse(src)) === src} 不变；撤销 / 自动配对 / 智能标点 / 表情补全 / \texttt{⌘B} 这些
+一律照旧（编辑面装了一套与 textarea 同名的 \texttt{.value} / \texttt{.selectionStart} 接口）。
+\textbf{代码、行内代码、链接、公式、行内 HTML、表格、任务框、多行段落}这类「标记里装着真内容」
+或结构复杂的块自动退回源码态 —— 藏了反而没法改
+\item 主题 ×6（GitHub / Night / Newsprint / Pixyll / Whitey / Gothic）、
+\textbf{专注模式}（光标块 100\% / 前后各一块 62\% / 其余 30\%，光标行再垫一条淡强调色底）、
+\textbf{打字机模式}（按「光标行」居中，多行块里折行也准）、
+\textbf{源码模式（⌘/）带行号与语法高亮}（围栏内按语言上色）、分栏模式（⌘⇧L）、
+\textbf{跟随系统外观}（系统切深色自动换 Night）
+\item \textbf{拼写检查}：块内 textarea 走 WebKit 原生检查；渲染态由 \texttt{spell.js} 切词后批量问
+系统词典（\texttt{NSSpellChecker}，与 textarea 同一个检查器），命中词画红波浪线，
+右键给建议词与「忽略此词」（忽略表落偏好）；代码块/行内代码/公式/Mermaid 不参与，
+判过的词进缓存并落 \texttt{localStorage}，重画不再问原生
+\item \textbf{写作手感}：自动配对（括号/引号/Markdown 符号，偏好项可关）、智能标点
+（\texttt{--}→\texttt{–}、\texttt{---}→\texttt{—}、\texttt{...}→\texttt{…}、成对直角引号）、视图缩放（⌘+ / ⌘- / ⌘0，
+只放大正文区）、字数面板（字/字符/行/段落/阅读时间/选区，点状态栏展开）、
+复制为 Markdown（⌘⇧C）、粘贴为纯文本（⌘⇧V）、选词 ⌘D / 选行 ⌘L
+\item \textbf{工作区}（打开文件夹后）：
+\begin{itemize}
+\item 文件树右键：新建文件/文件夹、重命名、复制副本、移到废纸篓、在 Finder 中显示
+\item Open Quickly（⌘⇧O）：模糊子序列匹配，连续与词首加分，↑↓ 选、Enter 开
+\item 全局搜索（⌘⇧F）：逐文件异步扫，命中显示行号与行文本，点结果直接跳到该位置；
+支持大小写/全词/正则
+\item 「文章」视图：按修改时间/名称/大小排序，可平铺或按文件夹分组
+\item 「最近」视图：最近打开的 30 篇（localStorage）；行尾图钉可「固定到列表」，
+固定项按固定时间倒序置顶且不会被新记录挤掉（超 30 只淘汰未固定项）
+\item 目录变动自动刷新（4 秒轮询比对签名）、未保存草稿定时落盘并在启动时询问恢复
+\item 标准 \texttt{.md} 相对链接（\texttt{./a.md}、\texttt{../x/y.md}、\texttt{\#锚点}）在应用内打开；
+目标不存在时问一句「要新建吗」
+\end{itemize}
+\item \textbf{多标签页}：一篇文档一个标签，标签栏只在开了两个以上时才出现（单文档时零占位）。
+\texttt{⌘T} 新建、\texttt{⌘W} 关当前（关最后一个换成空白页而不是关窗口，关窗口是 \texttt{⌘⇧W}）、
+\texttt{⌃⇥} / \texttt{⌃⇧⇥} 与 \texttt{⌘⇧]} / \texttt{⌘⇧[} 前后切换、中键关闭、\texttt{⌘⇧T} 重开刚关掉的那篇。
+\begin{itemize}
+\item 切走时把\textbf{整块现场}存进标签：正文、路径、脏标记、滚到哪、光标在哪个块的第几个字符、
+撤销/重做栈 —— 切回来连 ⌘Z 都能接着按，不是重新加载一遍。
+\item 同一个文件不会开两个标签，再打开就切过去（避免覆盖别处没保存的修改）。
+\item 有未保存改动才问「要保存吗」，干净标签直接关。
+\item 标签上的圆点表示未保存，鼠标移上去让位给关闭按钮；自动保存一次就灭。
+\item 上限 24 个，超了提示而不是静默丢弃。
+\item \textbf{重启后整排标签还在}：只记路径，正文一律以磁盘为准（没保存的改动不该跨重启活着，
+那种情况归「未保存草稿」那条路）；文件被删/挪走的跳过并提示一次；命令行或双击
+打开某篇时以那篇为准，不恢复会话。
+\end{itemize}
+\item 大纲导航（顶部筛选框 + 标题折叠）、自动保存、粘贴/拖图落盘（默认 \texttt{assets/}，front
+matter 写了 \texttt{typora-copy-images-to} 就跟着那个目录走；一次拖多张全部插入）
+\item \textbf{拖文件插入链接}：从 Finder 拖非图片文件进来，就在光标处插一条 Markdown 链接 ——
+能拿到绝对路径（\texttt{text/uri-list} / \texttt{text/plain}）就算相对当前文件的路径，只链文件名；
+拿不到路径但读得到内容（HTML5 File）就复制进 \texttt{assets/} 再链；两样都不行就只链文件名并提示。
+空格转 \texttt{\%20}、圆括号转 \texttt{\%28\%29}。按住 \texttt{⌥} 拖 \texttt{.md} / \texttt{.txt} 仍是直接打开
+\item \textbf{文件操作撤销}：新建 / 重命名 / 副本 / 移到废纸篓 / 移动到… 五类操作都能撤销 ——
+操作完 toast 上挂「撤销」按钮（5 秒），文件菜单「撤销文件操作」同样有效；
+逆操作栈上限 20 步。废纸篓靠原生 \texttt{trashItem(resultingItemURL:)} 拿到真实落点再搬回
+\item \textbf{图片管理}（图片右键）：重命名（改磁盘名并同步改引用）、移动到/复制到文件夹、
+删除（文件进废纸篓 + 引用移除）、复制路径/Markdown、\textbf{下载到本地}（\texttt{http(s)} 图抓进
+\texttt{assets/} 并改写引用）；\texttt{⌘⌃I} 从磁盘插入本地图片；「编辑 → 整理全部图片到 assets」
+批量搬、「下载全部远程图片」一次抓完；front matter 支持 \texttt{typora-copy-images-to}
+与 \texttt{typora-root-url} —— \textbf{\texttt{⌘⌃I}、粘贴、拖入三种入口走同一套路径解析}；偏好里可开图片居中
+\item \textbf{Emoji 补全}：块内敲 \texttt{:名字} 弹出候选（↑↓/Enter/Tab 选、Esc 关），插入的是字形本身；
+打分按「前缀 \textgreater{} 词段 \textgreater{} 中间」，同分看名字长短；\texttt{12:30}、\texttt{http://}、\texttt{a::b} 不会误触发，
+行内代码与围栏块里不弹
+\item \textbf{文本片段（Text Snippet）}：偏好里一行一条 \texttt{触发词 =\textgreater{} 内容}，支持 \texttt{\textbackslash{}n}/\texttt{\textbackslash{}t}/\texttt{\textbackslash{}\textbackslash{}}
+转义与 \texttt{\$0} 光标落点；在编辑器里敲触发词按 Tab 展开，中文触发词同样有效
+\item \textbf{严格模式}：视图菜单或偏好开关，渲染侧与\textbf{解析侧}同时生效。
+\begin{itemize}
+\item 渲染侧：关掉高亮、上下标、Emoji、笔记链接、Callout 这些扩展语法，源码一个字符不动；
+导出器吃同一套 tokenize，不会出现「预览里是字面 \texttt{==x==}、Word 里变成高亮」的不一致
+\item 解析侧：\texttt{\#\#\#Header} 不再算标题（严格档要求 \texttt{\#} 后有空白），列表续行与子列表必须
+缩进对齐到内容列（\texttt{indent + 标记宽 + 1}）；切档会 \texttt{reparse()} 重建块模型，
+两档都保持 \texttt{serialize(parse(src)) === src} 无损
+\end{itemize}
+\item \textbf{表格行列拖动排序}：按住行/列手柄拖到目标处，落在上半插在前面、下半插在后面，
+拖动时有指示线；表头行不参与拖动；拖完不会误触发「插入一行」
+\item 导出 HTML（可选主题 / 可去样式 / 可内嵌图片 / 可限宽）/ PDF（纸张·边距·页眉页脚·H1 分页·书签）/
+图片（PNG·JPEG 整页长图）/ Word / ODT / ePub / LaTeX / RTF / RST / MediaWiki /
+Textile / OPML / RevealJS，详见下节
+\item \textbf{原生打印}（⌘P，带系统打印面板）
+\item \textbf{命令行}：\texttt{opentypora file.md}、\texttt{opentypora 目录}、\texttt{echo '\# hi' | opentypora -}、
+\texttt{opentypora -v}，见下节
+\item \textbf{查找 / 替换}（⌘F / ⌘⌥F）：全文按字符偏移匹配，渲染态直接落到块内选区，
+源码态与分栏态落到 textarea 原生选区；支持区分大小写、正则、上下跳转、
+替换当前 / 全部替换，替换与撤销都在同一套快照栈里
+\item \textbf{偏好设置}（⌘,）：正文字号、正文宽度、自动保存、拼写检查、严格模式、文本片段、
+\textbf{自定义导出命令}（名称 / 命令 / 扩展名，上限 12 条，可一键填入 pandoc 预设），
+主题下拉里自动列出用户主题；设置存在 localStorage，重启恢复
+\item \textbf{自定义主题}：把 \texttt{*.css} 丢进 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}，
+重新扫描后出现在主题列表；\texttt{CSS 里的 :root / html 会被自动抬权到 html[data-theme]}，
+因此 \texttt{:root \{ --bg: …; --text: … \}} 就能覆盖内置配色，切换回内置主题时自动清空
+\item \textbf{分栏模式}：左栏 Markdown 源码（软换行可关、关后显示行号），右栏实时预览
+（输入防抖 90ms）。滚动任一侧另一侧按比例跟随（可关）；点预览块光标跳到
+左侧对应位置；中缝可拖动改比例；比例/开关/是否启用都记忆在 localStorage，
+重启恢复。分栏里的编辑直接进文档模型：字数、大纲、自动保存、导出全部同步，
+翻译浮标与 ⌘B/⌘I/⌘K/⌘1-6 快捷键照常可用。
+\item \textbf{本地翻译}：选中文本 → 浮动「译」按钮或 ⌘⇧Y → 调用 macOS Translation.framework
+在设备上翻译（不出网）。默认译为中文（简体），面板里可切换 12 种目标语言并记忆。
+译文可复制 / 插入下方 / 精确替换原文（渲染态基于 \texttt{data-s} 偏移映射回源码偏移）。
+\begin{itemize}
+\item \textbf{不会再问你“翻成什么语言”}：源语言由本地按文字体系判定（假名→日、谚文→韩、
+汉字→简中、西里尔→俄、阿拉伯→阿…拉丁字母→英）并显式传给系统。系统只在识别
+不出源语言时才弹语言选择框，把源语言钉死就没有这个交互了。
+\item 源语言 = 目标语言时直接短路，不惊动系统，并给一个「改译为 English」的一键入口。
+\item 同一语言对\textbf{复用常驻会话}（空闲 2 分钟才释放），第二次起不再重建会话、不再重新
+准备语言。实测第二次翻译 0.08 秒。
+\item 首次使用某种语言仍需系统下载语言包（一次性，之后完全离线）。
+\end{itemize}
+\end{itemize}
+
+
+\subsubsection{Mermaid 图表}
+
+写一个 \texttt{```mermaid} 代码块，渲染出来就是图；点进块里还是原来的源码。
+
+\begin{itemize}
+\item \textbf{懒加载}：3.4 MB 的 mermaid 只在文档里真的出现图表块时才注入，纯文字文档零成本。
+\item \textbf{不替换源码节点}：渲染是把 \texttt{\textless{}svg\textgreater{}} 插到块里、给块加 \texttt{.mermaid-on} 让 \texttt{\textless{}pre\textgreater{}} 隐藏，
+源码文本节点仍然在，\texttt{data-s} 字符偏移不断，点击定位与选区翻译照常工作。
+\item \textbf{按「主题 + 源码」缓存}：编辑器每敲一个字都会重渲染块 DOM，缓存命中时同步贴 SVG，不闪。
+\item \textbf{换主题重画}：mermaid 的配色在 initialize 时定死，切主题/换自定义 CSS 会整篇重画。
+\item 支持 flowchart / sequence / class / state / gantt / pie 等 Mermaid 11 全部图型。
+\item \textbf{语法错误不炸}：坏图标红提示（带 mermaid 的原始报错），源码保持可见，其它块照常渲染。
+\item 导出 HTML / PDF 里是内联 SVG，不依赖外部资源。
+\end{itemize}
+
+
+\subsubsection{flowchart.js}
+
+\texttt{```flow} 代码块走内置的 \texttt{flow.js}（约 420 行，零依赖，不需要 3.4 MB 的 mermaid）：
+
+\begin{verbatim}
+st=>start: 开始
+op=>operation: 处理数据
+cond=>condition: 通过?
+e=>end: 结束
+
+st->op->cond
+cond(yes)->e
+cond(no)->op
+\end{verbatim}
+
+\begin{itemize}
+\item \textbf{节点}：\texttt{id=\textgreater{}type: 文字}，type 有 start / end / operation / condition / inputoutput /
+subroutine 六种（对应圆角矩形 / 圆角矩形 / 矩形 / 菱形 / 平行四边形 / 双竖线矩形）。
+\item \textbf{边}：\texttt{a-\textgreater{}b}、链式 \texttt{a-\textgreater{}b-\textgreater{}c}、带标签 \texttt{a(是)-\textgreater{}b} 或 \texttt{a-\textgreater{}|是|-\textgreater{}b}；标签里 \texttt{\textbackslash{}n} 换行。
+\item \textbf{分层}：DFS 标记回边，在剔除回边后的 DAG 上松弛分层（不然环会把层号抬爆）；
+层内按声明顺序排，回边走画布外侧通道绕行。
+\item \textbf{走线}：横向段只走层间间隙、纵向段只走画布外通道，不穿过任何节点（有单测守着）。
+\item \textbf{出错不炸}：语法错误报行号、源码保持可见，其余块照常渲染。
+\item ePub / RevealJS 导出时 SVG 会被内嵌进去（\texttt{export.js} \texttt{inlineFlow}），不依赖外部资源。
+\end{itemize}
+
+
+\subsubsection{导出（HTML / PDF / 图片 / Word / ODT / ePub / LaTeX / RTF / RST / Wiki / Textile / OPML / RevealJS）}
+
+状态栏右下「导出 ▾」向上弹出十七项（五组），配了自定义命令会再多一组；
+菜单栏「文件 → 导出」里同一套，另有快捷键。
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{格式} & \textbf{快捷键} & \textbf{产出} \\
+\hline
+HTML & ⌘⇧E & 单文件网页，样式与公式字体（data URI）内联 \\
+HTML（无样式） & — & 只有语义结构，不带 \texttt{app.css}；包裹层限宽是独立选项 \\
+HTML 选项… & — & 对话框：带/不带样式、图片内嵌 data URI、正文限宽 830px、自定义 \texttt{\textless{}head\textgreater{}} / \texttt{\textless{}/body\textgreater{}} 前片段（原样插入不转义）；选择记忆进偏好 \\
+PDF & ⌘P（原生打印面板） / ⌘⇧P（直接导文件） & 纸张 A4·Letter·A3·A5、边距 pt、页眉页脚、H1 另起一页 \\
+图片 & — & PNG / JPEG 整页长图（临时撑高 WebView 截图后还原） \\
+Word & ⌥⌘W & \texttt{.docx}：Heading 1-6 样式、表格（继承分隔行的对齐）、\textbf{真脚注}、内嵌图片 \\
+ePub & ⌥⌘B & \texttt{.epub}：真 \texttt{h1..h6}、\texttt{nav.xhtml} 嵌套目录、脚注锚点+回链、图片入 \texttt{OEBPS/images/} \\
+LaTeX & ⌥⌘X & \texttt{.tex}：\texttt{ctexart}，XeLaTeX 直接编译；公式保留原文 \\
+OpenDocument & ⌥⌘D & \texttt{.odt}：\texttt{text:h} 大纲、\texttt{text:list}、\texttt{table:table}、\textbf{原生脚注}、图片进 \texttt{Pictures/} \\
+RTF & — & \texttt{.rtf}：\texttt{\textbackslash{}uNNNN?} 转义、粗斜体/删除线、\texttt{\textbackslash{}trowd} 真表格、超链接域，Word 直接打开 \\
+reStructuredText & — & \texttt{.rst}：下划线标题、\texttt{code-block} 指令、grid 表、脚注、\texttt{image} 指令（Sphinx 可用） \\
+MediaWiki & — & \texttt{.wiki}：\texttt{= 标题 =}、wikitable、\texttt{\textless{}syntaxhighlight\textgreater{}}、\texttt{\textless{}ref\textgreater{}} \\
+Textile & — & \texttt{.textile}：\texttt{h1(\#id).} 块签名、\texttt{*粗*}/\texttt{\_斜\_}/\texttt{@码@}、\texttt{"文字":url}、`\textbackslash{} \\
+OPML & — & \texttt{.opml}：按标题成树，正文进 \texttt{\_note}，可导进思维导图 \\
+RevealJS & — & \texttt{.html}：单文件幻灯片，h1 横向 / h2 纵向分页，图片内嵌 data URI；离线打开自动降级成滚动文档 \\
+自定义命令 & — & 见下节 \\
+\hline
+\end{tabular}
+\end{center}
+
+
+PDF 选项存在偏好里，「PDF 选项…」改过之后直接点 PDF 就沿用上次的纸张与边距；
+H1 分页是在主线程先给 \texttt{body} 挂 \texttt{pdf-h1page} 再打印，避免原生侧异步注入赶不上排版。
+
+\paragraph{YAML front matter 覆盖导出设置}
+
+文档开头的 front matter 会覆盖导出设置，优先级高于偏好与文件名：
+
+\begin{verbatim}
+---
+title: 年度报告
+subtitle: 2026 财年
+author: FW
+date: 2026-10-18
+keywords: 年报, 财务
+toc: true
+toc-title: 目次
+papersize: a4
+geometry: margin=2cm,top=3cm
+fontsize: 12pt
+linestretch: 1.5
+documentclass: ctexbook
+---
+\end{verbatim}
+
+\begin{itemize}
+\item \texttt{title/subtitle/author/date/keywords} → LaTeX preamble、docx / odt / epub 元数据、HTML \texttt{\textless{}meta\textgreater{}}、PDF 纸张
+\item \texttt{toc: true} → LaTeX \texttt{\textbackslash{}tableofcontents}、docx TOC 域（正文已有 \texttt{[TOC]} 时不重复插）
+\item \texttt{papersize} → 覆盖 PDF 偏好里的纸张；\texttt{geometry/fontsize/linestretch/documentclass} → LaTeX 模板
+\item 会原样进 preamble 的字段（\texttt{geometry} / \texttt{linestretch} / \texttt{documentclass}）过白名单与字符黑名单，挡注入
+\end{itemize}
+
+
+\paragraph{自定义导出命令（pandoc 等）}
+
+内置导出器覆盖不到的格式，可以在「偏好设置 → 自定义导出命令」里挂外部命令，
+配好之后出现在导出菜单最后一组：
+
+\begin{verbatim}
+pandoc -f markdown -t icml --resource-path="{dir}" "{src}" -o "{out}"
+\end{verbatim}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{占位符} & \textbf{含义} \\
+\hline
+\texttt{\{src\}} / \texttt{\{currentFilePath\}} & 当前文档的临时 \texttt{.md} 副本 \\
+\texttt{\{out\}} / \texttt{\{outputPath\}} & 保存面板选定的输出文件 \\
+\texttt{\{name\}} & 文档主名（不含扩展名） \\
+\texttt{\{dir\}} & 文档所在目录（用来找相对路径的图片） \\
+\texttt{\{ext\}} & 这条命令声明的输出扩展名 \\
+\hline
+\end{tabular}
+\end{center}
+
+
+\begin{itemize}
+\item 命令交给 \texttt{/bin/sh -c} 执行，\texttt{\{out\}} 是硬要求（缺了不让保存）；\texttt{sudo}、\texttt{rm}、\texttt{\$()} 一类会给警告
+\item 「填入 pandoc 预设」一键加 ICML / DocBook 5 / AsciiDoc 三条（需要先 \texttt{brew install pandoc}）
+\item pandoc 没装时提示 \texttt{brew install pandoc}，而不是丢一句 \texttt{command not found}
+\item 输出重定向到文件而不是 Pipe：命令打印再多也不会卡住（实测两万行无阻塞）
+\end{itemize}
+
+
+为什么内置格式不用 pandoc：pandoc 的 arm64 单文件解压后约 120 MB，而这里 docx / odt / epub 本质上
+就是 zip 包 —— 自己写一个 store 模式 ZIP 写入器（\texttt{zip.js}，约 100 行）+ 一套
+WordprocessingML / OPC 生成（\texttt{docx.js}）+ OpenDocument 生成（\texttt{odt.js}），
+RTF / RST / MediaWiki / OPML 则直接是文本生成（\texttt{textfmt.js}），
+内置导出链路零外部依赖、离线可用；pandoc 只作为「要更多格式」时的可选外挂。
+
+实现要点：
+
+\begin{itemize}
+\item \textbf{ZIP 不压缩（store）}：Word 与 iBooks 都认。省掉 DEFLATE 实现，代价只是体积大 20\textasciitilde{}30\%；
+epub 的 \texttt{mimetype} 必须是第一个条目且不压缩、无 extra field —— store 模式天然满足。
+\item \textbf{行内 token 化}（\texttt{inline.js}）：docx/LaTeX 需要的是结构化 run，把 HTML 反解会丢掉
+\texttt{\$E=mc\textasciicircum{}2\$} 的原文（md.js 渲染时已经转成了 HTML span），所以按同一套规则重新 token 化一次。
+\item \textbf{脚注是真脚注}：\texttt{w:footnote} + \texttt{word/footnotes.xml}，编号按\textbf{正文首次引用顺序}
+（与作者定义顺序无关）；ePub 里换成 \texttt{\#fn1} 锚点 + \texttt{↩} 回链。
+\item \textbf{\texttt{[TOC]} 不糊弄}：docx 写的是 TOC 域（Word 里右键「更新域」就出页码），ePub 写的是
+真正的嵌套 \texttt{\textless{}ol\textgreater{}} 目录，与 \texttt{nav.xhtml} 一致。
+\item \textbf{图片按真实像素内嵌}：从 PNG IHDR / JPEG SOF / GIF / BMP 头里读宽高，换算 EMU 并
+按 A4 正文宽度封顶；读不到的文件（远程图片、缺失文件）退化为 \texttt{[图片：alt]} 并给警告，
+不会留破图。
+\item \textbf{样式自带}：\texttt{styles.xml} 里定义 Normal / Heading1-6（带 \texttt{outlineLvl}，Word 目录域才认）/
+Quote / CodeBlock / ListParagraph / FootnoteText / Hyperlink / TableGrid，
+中文字体 PingFang SC、等宽 Menlo。
+\item 导出时会先把归档写进 base64 交给原生侧落盘（\texttt{exportFile}），图片则通过 \texttt{readBinary}
+按当前文档目录解析相对路径。
+\end{itemize}
+
+
+\subsubsection{导入（Word / ODT / ePub / HTML / RST / LaTeX → Markdown）}
+
+菜单栏「文件 → 导入（Word / ODT / ePub / HTML / RST / LaTeX）…」（⌘⇧I）。全程本地转换，不发任何网络请求。
+
+\begin{itemize}
+\item \texttt{.docx}：解 zip 读 \texttt{document.xml}，按 WordprocessingML 语义还原（脚注、表格、图片出包）
+\item \texttt{.odt}：解 zip 读 \texttt{content.xml}，\texttt{text:h} / \texttt{text:list} / \texttt{table:table} / \texttt{text:note} 逐块还原，
+\texttt{Pictures/} 里的图片取出来落到 \texttt{assets/\textless{}文档名\textgreater{}-media/}
+\item \texttt{.epub}：解 zip 读 \texttt{META-INF/container.xml} → OPF，按 \texttt{spine} 顺序逐章转（跳过 \texttt{nav} 与
+\texttt{linear="no"}），包内图片按章节相对路径解出去重后落到 \texttt{assets/}，文末脚注区还原成 \texttt{[\textasciicircum{}n]:}
+\item \texttt{.html} / \texttt{.htm}：DOM 走一遍，容器块展开、行内收敛成 Markdown
+\item \texttt{.rst}：行扫描 —— 下划线标题、指令块、grid 表格、\texttt{[\#x]\_} 脚注、缩进引用
+\item \texttt{.tex} / \texttt{.latex}：去注释、取 \texttt{\textbackslash{}begin\{document\}} 内文；\texttt{\textbackslash{}section} 系列按 article/book 定级，
+\texttt{itemize}/\texttt{enumerate}/\texttt{description}、\texttt{tabular}、\texttt{verbatim}、\texttt{equation} 环境逐个还原，
+行内 \texttt{\textbackslash{}textbf}/\texttt{\textbackslash{}emph}/\texttt{\textbackslash{}texttt}/\texttt{\textbackslash{}href}/\texttt{\textbackslash{}footnote}/\texttt{\textbackslash{}includegraphics[width=…]} 转成对应语法
+\end{itemize}
+
+
+流程：选源文件 → 前端转换 → \textbf{有内嵌图片时先问 \texttt{.md} 存哪儿}（图片总得落地）→
+一次性写盘 → 打开。纯文本（没有图片）直接开成未命名文档，⌘S 再决定放哪儿。
+
+实现要点：
+
+\begin{itemize}
+\item \textbf{自写标记解析器}：HTML 与 OOXML 共用一套 tokenizer + 树构建。XML 模式关掉 HTML 的
+void 元素与隐式闭合（\texttt{\textless{}w:p\textgreater{}} 里那个 \texttt{p} 不是段落），HTML 模式关掉大小写敏感与自闭合怪癖。
+好处是同一套判块逻辑能直接复用，坏处是没有浏览器的容错能力 —— 所以解析器对
+「标签没闭合」「属性没引号」都做了兜底，不会因为一处畸形就丢整篇。
+\item \textbf{docx 解压}：真 Word 文件是 deflate（method 8），而 \texttt{zip.js} 只写 store（导出侧的取舍），
+所以读入时用 \texttt{DecompressionStream('deflate-raw')} 解压（macOS 13+ 与 Node 18+ 都有），
+store 条目直接取字节。
+\item \textbf{判据是语义不是外观}：Word 的 \texttt{Quote} 段落样式出 \texttt{\textgreater{}}（不再重复包一层斜体）；
+「空段落 + 下边框」出 \texttt{---}；带 \texttt{numPr} 的段落去 \texttt{numbering.xml} 查真编号（bullet / decimal /
+startOverride），连续同类项合成紧凑列表；只有字符样式解析出等宽字体时才当行内代码。
+\item \textbf{不猜}：认不出的结构（域代码、批注、修订删除、SmartArt、嵌套表格）直接跳过 —— 宁可少一行，
+也不产出半截语法。
+\item \textbf{md 表达不了的样式}：下划线/高亮只留文字；上标下标能整体映射成 Unicode（\texttt{m²}、\texttt{H₂O}）就映射，
+有一个字符映射不了就整段退回普通文字；\texttt{\textless{}svg\textgreater{}}、\texttt{\textless{}details\textgreater{}} 这类整块元素原样保留成 HTML 块
+（编辑器本来就渲染 HTML 块）。
+\item \textbf{往返自洽}：\texttt{md → docx（本项目导出）→ md} 保留标题/列表/引用/表格/分隔线/行内代码，
+单测里就是拿自己导出的 docx 回头验的。
+\end{itemize}
+
+
+\subsection{快捷键}
+
+\begin{center}
+\begin{tabular}{ll}
+\hline
+\textbf{操作} & \textbf{快捷键} \\
+\hline
+新建 / 打开 / 打开文件夹 & ⌘N / ⌘O / ⌘⌥⇧O \\
+新建标签页 / 关闭标签页 & ⌘T / ⌘W \\
+上一个 / 下一个标签页 & ⌃⇧⇥ / ⌃⇥（或 ⌘⇧[ / ⌘⇧]） \\
+关闭窗口 & ⌘⇧W \\
+Open Quickly / 全局搜索 & ⌘⇧O / ⌘⇧F \\
+新窗口 & ⌘⇧N \\
+保存 / 另存为 & ⌘S / ⌘⇧S \\
+源码模式 / 分栏模式 / 侧边栏 & ⌘/ / ⌘⇧L / ⌘\textbackslash{} \\
+标题级别 1–6 / 正文 & ⌘1…⌘6 / ⌘0 \\
+粗体 / 斜体 / 行内代码 / 链接 & ⌘B / ⌘I / ⌘E / ⌘K \\
+删除线 / 高亮 & ⌘⇧X / ⌘⇧H \\
+插入本地图片（多选） & ⌘⌃I \\
+查找 / 查找并替换 & ⌘F / ⌘H \\
+缩放 +/−/原始 & ⌘+ / ⌘- / ⌘0 \\
+复制为 Markdown / 粘贴为纯文本 & ⌘⇧C / ⌘⇧V \\
+选中单词 / 选中当前行 & ⌘D / ⌘L \\
+插入表格对话框 & ⌘⌥T \\
+Emoji 补全（块内 \texttt{:名字}） & ↑↓ 选择 / Enter 或 Tab 插入 / Esc 关 \\
+文本片段展开（块内敲触发词） & Tab \\
+表格行/列拖动排序 & 按住行/列手柄拖到目标处 \\
+严格模式 & 视图 → 严格模式（偏好里也有开关） \\
+行内实时预览 & 偏好「编辑 → 行内实时预览」；光标进到某段强调里，那对标记才现身 \\
+偏好设置 & ⌘, \\
+翻译选中内容 & ⌘⇧Y \\
+导入 Word / HTML & ⌘⇧I \\
+打印 / 导出 PDF & ⌘P / ⌘⇧P \\
+导出 HTML & ⌘⇧E \\
+导出 Word / ODT / ePub / LaTeX & ⌥⌘W / ⌥⌘D / ⌥⌘B / ⌥⌘X \\
+重新打开已关闭的文件 & ⌘⇧T \\
+撤销 / 重做 & ⌘Z / ⇧⌘Z \\
+\hline
+\end{tabular}
+\end{center}
+
+
+\subsection{命令行}
+
+\begin{verbatim}
+./build.sh && sudo ./install-cli.sh     # 装到 /usr/local/bin/opentypora
+
+opentypora note.md          # 打开文件（多个参数各开一个实例）
+opentypora ~/notes          # 把目录作为工作区打开
+echo '# hi' | opentypora -  # 从 stdin 读 Markdown，落成临时文件后打开
+opentypora -v               # 版本（读 Info.plist）
+\end{verbatim}
+
+脚本只是 \texttt{open -a} 的薄包装（\texttt{OPENTYPORA\_APP} 可覆盖 app 路径），\texttt{test/cli.test.js}
+覆盖 \texttt{--help} / \texttt{--version} / 未知选项退出码 / 文件不存在提示。
+
+\subsection{已验证}
+
+一条命令跑全部（纯 Node 套件直接跑，harness 套件自动交给 \texttt{build/shot} 取 \texttt{\_\_report}）：
+
+\begin{verbatim}
+node test/runall.js            # 合计 3318/3318（57 个套件）
+node test/runall.js table math # 只跑指定套件
+\end{verbatim}
+
+\begin{itemize}
+\item \texttt{node test/parser.test.js} → 解析/序列化 121/121（含公式 6 条、图片尺寸 8 条、
+HTML 块 14 条、wiki 链接 9 条，每条都验「解析 → 序列化」字节无损）
+\item \texttt{node test/syntax2.test.js} → 扩展语法 50/50（引用式链接/图片、裸 URL 边界、
+上下标、Emoji、行内 HTML 与消毒、Callouts、三条导出链的 token 一致性）
+\item \texttt{node test/workbench.test.js} → 工作区纯函数 43/43（模糊匹配加分、文章分组与排序、
+相对路径解析、最近时间文案、最近文件的固定/置顶/上限淘汰）
+\item \texttt{node test/odt.test.js} → ODT 53/53（zip 条目顺序与 mimetype、\texttt{text:h} 大纲级别、
+\texttt{text:list} 编号/嵌套、\texttt{table:table} 列数与表头样式、\texttt{text:note} 脚注序号、
+图片进 \texttt{Pictures/} 且按 96dpi 折 cm、超宽封顶 15cm、PNG/JPEG/GIF 尺寸解析、
+缺图时文字占位 + 警告）
+\item \texttt{node test/textfmt.test.js} → 文本系导出 112/112（RTF 的 \texttt{\textbackslash{}u} 转义与负数代理项、
+表格 \texttt{\textbackslash{}trowd/\textbackslash{}cellx}、HYPERLINK 域；RST 的下划线标题/grid 表/指令；MediaWiki
+表格与 \texttt{\textless{}ref\textgreater{}}；Textile 的块签名/\texttt{|\_.} 表头/\texttt{bc..} 扩展块/\texttt{fn1.} 脚注与 \texttt{[TOC]}
+锚点列表；OPML 标题树与 \texttt{\_note} 摊平；\texttt{Export.build} 十种格式分发）
+\item \texttt{node test/reveal.test.js} → RevealJS 36/36（h1 横向 / h2 纵向分页、无 h1 时降级、
+深层标题留在页内、代码/表格/列表/引用/公式、\texttt{[TOC]} 真链接、脚注独立成页、
+图片内嵌 data URI 与读不到时保留原路径、\texttt{.no-reveal} 兜底样式、标题转义）
+\item \texttt{node test/infmt.test.js} → ODT/RST/LaTeX 导入 73/73（导出再导入的往返：标题/粗斜体/
+嵌套列表/有序编号/表格/脚注；图片资产按 \texttt{assetDir} 重写；RST 的 code-block、
+grid 表、注释块丢弃、缩进引用；LaTeX 的分节定级、\texttt{\textbackslash{}begin}/\texttt{\textbackslash{}end} 环境、tabular
+列格式剥离、\texttt{\textbackslash{}includegraphics[width=3cm]} 折算 113px、\texttt{\textbackslash{}cite}/转义符号；
+\texttt{Importer.convert('odt'|'rst'|'epub'|'tex')} 分发）
+\item \texttt{node test/epub.test.js} → ePub 导入 22/22（自产 epub 的解包往返、spine 顺序、
+\texttt{dc:title}、\texttt{properties="nav"} 跳过、图片按章节相对路径解出并去重、脚注区还原成
+\texttt{[\textasciicircum{}n]:}、手写 deflate 包的 \texttt{DecompressionStream} 解压、非 zip 明确报错）
+\item \texttt{node test/imgman.test.js} → 图片管理纯函数 82/82（本地路径判定、\texttt{..} 折叠、
+相对路径换算、front matter 的 \texttt{typora-root-url} / \texttt{typora-copy-images-to}、
+引用扫描（尖括号路径、title、\texttt{=WxH}）、只改命中项的引用改写、重名 \texttt{-2/-3}、
+远程图判定与文件名推导（去 query/hash、URL 解码、无扩展名补 \texttt{.png}、非法字符））
+\item \texttt{node test/imgedit.test.js \&\& ./build/shot …} → 图片与大纲集成 39/39（大纲筛选/折叠、
+图片居中开关、右键菜单项、重命名后引用改写、移动到文件夹、删除进废纸篓并移除引用、
+\texttt{⌘⌃I} 插入走 \texttt{imgImport}、已在 assets 的图不重复搬）
+\item \texttt{node test/cli.test.js} → 命令行 15/15（\texttt{--help} 不泄漏脚本正文、\texttt{-v} 版本形状、
+未知选项退出码 2、文件不存在退出码 1、两个脚本 \texttt{bash -n} 通过）
+\item \texttt{test/harness.html}（WKWebView 运行时）→ 23/23
+\item \texttt{node test/translate.test.js \&\& ./build/shot …} → 翻译功能 42/42（选中浮标、
+默认中文简体、面板渲染、插入/替换/复制、⌘⇧Y、源码/分栏模式替换、语言包缺失引导、
+目标语言记忆、源语言随请求下发、同语言短路与改译入口）
+\item \texttt{node test/split.test.js \&\& ./build/shot …} → 分栏功能 23/23（进入/退出、实时预览、
+内容同步、行号、点预览跳源码、⌘⇧L、⌘/ 串联、导出、新建清空、分栏内快捷键）
+\item \texttt{node test/selbar.test.js \&\& ./build/shot …} → 翻译浮标定位 32/32（渲染态、源码、块内编辑、分栏预览四种选区场景下浮标水平
+居中误差 ≤ 1px，且稳定停在选区上方 6px；跨行选区退化为整栏居中；
+分栏预览选区按 data-s 映射回文档级偏移）
+\item \texttt{node test/find.test.js \&\& ./build/shot …} → 查找替换 33/33（⌘F/⌘⌥F 开合、大小写、
+正则与非法正则、上下跳转与循环、替换当前/全部替换、撤销、选区带入、
+源码模式与分栏模式下的替换）
+\item \texttt{node test/prefs.test.js \&\& ./build/shot …} → 偏好设置 30/30（字号/宽度实时生效并持久化、
+拼写检查开关、自动保存开关真的停/启写盘、自定义主题注入与回退、恢复默认、Esc 关闭）
+\item \texttt{node test/mermaid.test.js \&\& ./build/shot …} → 图表 27/27（懒加载、SVG 产出与节点文字、
+源码保留且仅 CSS 隐藏、坏图降级不炸、普通代码块不受影响、缓存命中、换主题重画、
+分栏预览同一套装饰、导出内含 SVG）
+\item \texttt{node test/doc.test.js \&\& ./build/shot …} → 目录/锚点/脚注 46/46（slug 规则、同名去重、
+TOC 层级嵌套、点目录滚动 + 高亮、脚注按出现顺序编号、悬停 title、分栏预览锚点与
+主编辑器逐项一致、文档重载后目录跟随、无标题空态、角标配色与脚注行样式、
+分栏导出也带目录）
+\item \texttt{node test/export.test.js} → 导出引擎 48/48（crc32 标准向量、zip 往返、docx 部件与
+样式/编号/超链接关系/表格对齐/TOC 域、脚注按引用顺序编号、图片 120×80→EMU、
+XML 转义全量、epub 的 mimetype 位置与压缩方式、嵌套目录、脚注回链、标签成对闭合、
+LaTeX 宏与转义；并把产物写到 /tmp 用 \texttt{python3 zipfile + ElementTree} 与
+\texttt{textutil}（macOS 自己的 docx importer）复核）
+\item \texttt{node test/exportui.test.js \&\& ./build/shot …} → 导出菜单 106/106（向上弹层位置与右对齐、
+Esc 关闭、十七个入口与四条分组线、HTML 带/不带样式的载荷差异、HTML 选项对话框
+（五个开关 + 导出主题下拉、记住上次选择、关限宽后无行内宽度、再导一次仍沿用、
+不导出样式时主题下拉禁用、选夜间写出 \texttt{data-theme="night"}、自定义主题的 CSS 与
+文件名传到原生且 \texttt{:root} 被抬成 \texttt{html[data-theme]}）、PDF 选项对话框
+（纸张字母尺寸、边距夹取、页眉页脚、H1 分页）与「沿用上次选项」、PNG/JPEG 走
+\texttt{exportImage}、点 Word/ePub/LaTeX 后 Bridge 收到的扩展名与 base64 载荷
+以 \texttt{PK\textbackslash{}x03\textbackslash{}x04} 开头、docx 内含四个关键部件、图片走 readBinary、脚注进 footnotes.xml、
+空文档不导出且有提示）
+\item \texttt{node test/strict.test.js} → 严格模式 / Emoji 补全 / Text Snippet / 表格拖动 / HTML 导出选项
+纯函数 102/102（\texttt{setStrict/isStrict} 与渲染差异：高亮/上下标/Emoji/wiki/Callout 退成
+字面而粗体照常、源码不动；tokenize 与导出器跟同一开关；\texttt{emojiNames/emojiOf} 表与
+排序；\texttt{match} 三档打分与 limit；\texttt{triggerAt} 挡住 12:30 / http:// / a::b / 字母后冒号；
+\texttt{inCode} 的围栏逐行扫描与行内代码奇偶；\texttt{parseSnippets} 的注释/非法触发词/重复覆盖/
+\texttt{\textbackslash{}n} \texttt{\textbackslash{}t} \texttt{\textbackslash{}\textbackslash{}} 转义、序列化往返、\texttt{expand} 的 \texttt{\$0} 落点与中文触发词与词边界；
+\texttt{moveRow/moveCol}（对齐与列宽一起搬、越界夹取）、\texttt{dropIndex} 插入位换算；
+\texttt{htmlOptions} 归一化、\texttt{htmlDoc} 包壳与限宽、\texttt{imageRefs} 只收本地相对引用且去重、
+\texttt{applyImageMap} 回填、\texttt{dataUri} 的 MIME 表与兜底）
+\item \texttt{node test/edit2.test.js \&\& ./build/shot …} → 同上五项的真实 WebView 集成 53/53
+（\texttt{:smi} 弹层与候选排序、↑↓/Esc/Enter 行为、12:30 与 URL 与行内代码不弹；
+Tab 展开片段与 \texttt{\$0} 落点与非触发词不展开；按住行/列手柄拖到目标行
+上半/下半的插入位置、拖完不误插一行、撤销恢复；严格模式开关后渲染差异
+与源码逐字符不变、可来回切）
+\item \texttt{node test/exportopts.test.js} → 导出选项 28/28（四种纸张常量、未知纸张回落 A4、
+边距取整与 0–120 夹取、非数字回落、只保留已知字段、图片格式归一）
+\item \texttt{node test/math.test.js \&\& ./build/shot …} → 公式 21/21（KaTeX 0.19 加载、
+4 个块级公式都是 displayMode 且居中、矩阵/对齐/分段有 mtable 结构、
+坏公式只产出一个 katex-error 且不吞后文、KaTeX\_Main 字体可用、
+行内公式带 data-s、夜间主题公式转浅色、分栏预览里同样渲染）
+\item \texttt{node test/table.test.js \&\& ./build/shot …} → 表格编辑 46/46（渲染带 data-r/data-c、
+上/下插行与左/右插列位置正确、新列继承对齐、删到最后一列整表移除、表头行不可删、
+序列化往返结构一致、改动后撤销回到原状、悬停出手柄且记住行列、右键菜单项齐全、
+表头行菜单里没有「删除本行」）
+\item \texttt{node test/import.test.js} → 导入 33/33（Word 风格 deflate docx：样式/编号/超链接/
+表格合并/脚注/图片尺寸；HTML：嵌套列表、表格对齐、\texttt{\textless{}br\textgreater{}} 硬换行、实体与转义、
+\texttt{\textless{}details\textgreater{}} 保留、script/style 丢弃；\texttt{md→docx→md} 往返；GBK 页面解码）
+\item \texttt{node test/importweb.test.js \&\& ./build/shot …} → 导入 26/26（WebKit 里
+\texttt{DecompressionStream('deflate-raw')} 可用、docx/html 转换结果、图片资源 base64，
+以及 UI 入口两条分支：有图先选保存位置、无图直接开未命名文档）
+\item \texttt{node test/note.test.js \&\& ./build/shot …} → 笔记链接 41/41（wiki 四种写法渲染、
+别名不吃目标、锚点不读文件、坏链标记只在能判断时加、点击按文件树真实路径打开、
+脚注浮层出现/内容/位置/摘 title/移开收起、\texttt{[[} 选单过滤与回车插入不拆块、
+分栏预览同渲染、导出保留）
+\item \texttt{node test/html.test.js \&\& ./build/shot …} → HTML 块 43/43（跨空行整块收、同名标签
+嵌套配平、注释与 style 吃到闭合、未闭合不吞后文、行内 style 生效、details 折叠、
+script 与 onclick 被剔除且没执行、点块内文字进源码态且 raw 不变、分栏预览同渲染、
+导出 HTML 是真标签）
+\item \texttt{node test/image.demo.js \&\& ./build/shot …} → 图片尺寸实机核对：5 张图的
+\texttt{naturalWidth×naturalHeight} 依次为 \texttt{400×240 / 200×120 / 260×156 / 150×90 / 140×84}，
+加载失败 0（截图 \texttt{docs/opentypora-image.png}）
+\item \texttt{node test/strictparse.test.js} → 严格模式解析侧 52/52（官方文档每条示例：
+\texttt{\#\#\#Header} 两档差异、\texttt{1. aaa} 后接 2/3 空格、\texttt{10. aaa} 后接 2/4 空格、空行后同级项
+另起一块；列表续行与子列表按内容列判定；两档都验 \texttt{serialize(parse(src)) === src}）
+\item \texttt{node test/flow.test.js} → flowchart.js 58/58（\texttt{parse} 的节点/边/链式/管道标签/\texttt{\textbackslash{}n}
+转义与错误行号；\texttt{backEdges} 剔除回边、环不抬爆层号；\texttt{layout} 的分层与走线不变量：
+正交段不穿其他节点、画布包住全部走线；\texttt{svg} 六种形状与深浅双调色板）
+\item \texttt{node test/flowdom.test.js \&\& ./build/shot …} → flowchart 真实 WebView 集成 30/30
+（渲染出 \texttt{\textless{}figure\textgreater{}} 且源码仅 CSS 隐藏、换主题重画、坏图报行号、ePub/RevealJS
+导出内嵌 SVG、源码态与分栏预览一致）
+\item \texttt{node test/fsundo.test.js} → 文件操作撤销 31/31（内存 FS 上跑五类操作的逆操作：
+新建后撤销文件消失、重命名搬回原名、副本删除后回来、废纸篓经 trashPath 恢复、
+移动搬回原目录；失败路径不压栈、栈上限 20、撤销后栈清空）
+\item \texttt{node test/fsundodom.test.js \&\& ./build/shot …} → 文件操作撤销 41/41（右键菜单
+→ 操作 → 树刷新 → toast「撤销」按钮 → 恢复；文件菜单「撤销文件操作」同一条路径；
+目标目录没变时不产生撤销项）
+\item \texttt{node test/yaml.test.js} → front matter 84/84（围栏识别、\texttt{\#} 注释、引号内外、
+空值跳过、块折叠忽略、\texttt{overrides} 的键名归一与白名单、\texttt{toc}/\texttt{paper} 的布尔与
+枚举解析、注入字符黑名单、往返不丢）
+\item \texttt{node test/exportyaml.test.js} → YAML 覆盖导出 37/37（LaTeX 的
+\texttt{\textbackslash{}title}/\texttt{\textbackslash{}author}/\texttt{\textbackslash{}date}/\texttt{\textbackslash{}tableofcontents}/\texttt{geometry}/\texttt{\textbackslash{}linespread}；docx 的
+\texttt{core.xml} 与 TOC 域；ePub 的 \texttt{dc:*} 与 \texttt{nav} 标题；odt 的 \texttt{meta.xml}；
+RevealJS 标题页；HTML 的 \texttt{\textless{}meta\textgreater{}}；YAML 优先于文件名、没有 YAML 时回落）
+\item \texttt{node test/xcmd.test.js} → 自定义导出命令 57/57（占位符两套别名、\texttt{env}/\texttt{nohup}
+前缀跳过、引号与管道切词、缺 \texttt{\{out\}} 硬错、缺 \texttt{\{src\}} 与 shell 元字符警告、
+pandoc 缺失提示、列表归一化与 12 条上限、预设端到端展开无残留）
+\item \texttt{node test/xcmddom.test.js \&\& ./build/shot …} → 自定义导出命令集成 45/45（偏好面板
+增删编辑与持久化、pandoc 预设去重添加、导出菜单按命令数列项、点击后 Bridge 收到的
+\texttt{cmd/ext/name/dir/content} 载荷、成功后「在 Finder 中显示」、缺 \texttt{\{out\}} 被拦截、
+命令不存在的错误提示、取消保存面板、空文档不出命令、清空后菜单不再显示自定义组）
+\item \texttt{node test/code.test.js} → 代码块 Code Tools 110/110（缩进/去缩进按整段最小缩进、
+\texttt{⌘/} 在 9 种语言下的注释符与空行跳过、上移下移的边界、字符串与注释里的括号不参与
+深度计算、Python/YAML 只规范层级、复制为 HTML 的转义）
+\item \texttt{node test/codemod.test.js \&\& ./build/shot …} → Code Tools 集成 47/47（右键菜单八项、
+\texttt{⌘/} 切注释后仍留在编辑态、\texttt{⌥↑↓} 换行、块内 Tab/⌘Z 撤销、语言下拉改名、
+复制走 \texttt{Bridge.copy} 而不是剪贴板 API）
+\item \texttt{node test/highlight.test.js} → 语法高亮 135/135（33 个下拉项归一成 32 套词法、
+每种语言的注释/字符串/数字/关键字命中、别名等价、未闭合字符串与块注释不越界；
+最关键的一条是往返不变量：去掉 \texttt{\textless{}span\textgreater{}} 再反转义必须一字不差还原原文，
+任何规则多吃/少吃一个字符都会立刻炸）
+\item \texttt{node test/srcmode.test.js} → 源码模式高亮层 90/90（行数/行号/结构、无 MD 时的转义、
+逐行往返不变量、长行不截断、围栏内按围栏语言上色且 \texttt{\textasciitilde{}\textasciitilde{}\textasciitilde{}} 不误关围栏、
+桩对象上 attach/show/refresh/hide 的接线——后者曾经救过一次，\texttt{attach} 里返回了一个
+作用域外的变量，纯函数全绿但整个 UI 起不来）
+\item \texttt{node test/srcmodedom.test.js \&\& ./build/shot …} → 源码模式 47/47（真 WKWebView 里量
+两层文字左起点与首行上沿逐像素重合、行高节奏一致、前 6 行无累积漂移、长文档
+纵横滚动同步、横滚时行号 sticky 不动、输入后重画、退出后清空、重进不残留旧行）
+\item \texttt{node test/caret.test.js} → 光标行几何 57/57（逻辑行号与行区间、居中量、越界夹取、
+近邻块、以及 \texttt{caret.js} / \texttt{editor.js} / \texttt{app.css} 之间的接线串）
+\item \texttt{node test/spell.test.js} → 拼写 126/126（候选词边界、切词（撇号整体/连字符断开/中文与
+数字跳过）、待查去重与缓存跳过、分段拼回原文、重叠区间取并集、转义、\texttt{fixAt} 的
+±3 微调与全篇兜底；再编译并跑 Swift 断言程序：\texttt{recieve/occured/seperate} 必报、
+\texttt{receive/because/hello} 不报、下标对齐、ignore 大小写不敏感、建议词、串行队列回调）
+\item \texttt{node test/spelldom.test.js \&\& ./build/shot …} → 拼写 49/49（真 WKWebView + 桩词典：
+5 条波浪线按文档顺序落在标题/段落/粗体/链接上、行内代码与围栏代码一个字没碰、
+纯中文段不标、计算样式是 \texttt{underline wavy} 且 \texttt{skip-ink:none}、颜色取主题变量、
+请求去重且重画不再问引擎、每个波浪线的块内偏移都精确命中 raw、编辑块不重复画、
+右键菜单给建议词、点一下只改那一处（同词出现两次也不串）、忽略后不再标且不影响别的词）
+\item \texttt{node test/typography.test.js} → 版式 102/102（预设表不变量、\texttt{pickFont} 各档、字体族清洗
+（分号/花括号/尖括号/引号）、行距夹取与两位小数、\texttt{lhScale}、背景归一化、变量表顺序、
+\texttt{styleOf} 缺省省略、\texttt{htmlDoc} 接线、app.css 与 \texttt{DEFAULT\_LEADING} 的对齐）
+\item \texttt{node test/typodom.test.js \&\& ./build/shot …} → 版式 59/59（真 WKWebView：宋体真落到段落
+而代码块仍是等宽、行高 = 倍数 × 字号、标题同比缩放、代码块行高不动、自定义字体族生效、
+换主题不冲掉自定义背景、「跟随主题」回到主题色、拖字号不丢版式、恢复默认、导出 HTML 带变量）
+\item \texttt{node test/caredom.test.js \&\& ./build/shot …} → 光标行 34/34（真 WKWebView：长段折行后
+镜像量出的 top 必是行高的整数倍、光标在文末落在最后一行、光标到中间后 top 变大；
+打字机把光标行钉在视口中央 ±2px，块内挪三次位置各不相同且滚动位置单调增加；
+专注模式下近邻只有前后两块、高亮条压在光标行上且随光标换行下移整数个行高；
+退出编辑后高亮条与 near 都清干净）
+\item \texttt{node test/pdfbook.test.js} → PDF 书签 51/51（前端 \texttt{pdfOutline} 跳过围栏里的 \texttt{\#}、
+\texttt{plainHeading} 剥标记；再编译并跑 Swift 断言程序：造真 PDF → 挂 outline → 读回验
+层级/落页/目录页排除/折行标题/幂等，\texttt{PDFKit} 只对自造文档写 \texttt{/Outlines} 这个坑也钉住了）
+\item \texttt{node test/htmltheme.test.js} → 导出主题 75/75（主题表与 \texttt{app.css} 的
+\texttt{html[data-theme="…"]} 双向对齐、\texttt{'user:x.css'} 叠在 base 上、未知值回落 github、
+文件名挡路径穿越；再跑 Swift 注入断言：\texttt{app.css} 在前自定义主题在后、\texttt{\textless{}/style} 转义、
+缺 \texttt{\textless{}/head\textgreater{}} 退到 \texttt{\textless{}body\textgreater{}} 前、空值原样返回）
+\item \texttt{node test/htmlthemedom.test.js \&\& ./build/shot …} → 导出主题 27/27（把真实导出的单页塞进
+\texttt{srcdoc} iframe 量计算样式：背景/文字色与 \texttt{app.css} 变量逐值相等、夜间比 GitHub 暗、
+自定义主题压住内置基底、无样式导出确实没有 CSS、\texttt{overflow} 不再是 hidden 且能滚到 600px、
+标题/正文/限宽/等宽字体）
+\item \texttt{node test/dropfile.test.js} → 拖文件插链接 33/33（\texttt{text/uri-list} 与 \texttt{text/plain}
+两条路径各自抠出绝对路径、\texttt{file://} 剥离与百分号解码、目录/相对/URL 被丢掉、
+三档退化的判定、空格与圆括号转义、标签里 \texttt{[]\textbackslash{}} 转义）
+\item \texttt{node test/dropdom.test.js \&\& ./build/shot …} → 拖文件 / 贴图 27/27（相对当前文件
+出 \texttt{./x.md}、空格变 \texttt{\%20}、无路径时复制进 \texttt{assets/} 并改名 \texttt{-2}、二进制退化成
+文件名、\texttt{⌥} 拖入仍是打开、源码模式插到 textarea 光标处；贴图：\texttt{dest} 按
+\texttt{typora-copy-images-to} 算成绝对目录、引用按文档目录或 \texttt{root-url} 写成相对、
+未保存文档落临时目录并链绝对路径）
+\item \texttt{node test/recentdom.test.js \&\& ./build/shot …} → 最近文件固定 26/26（图钉渲染与
+\texttt{aria-pressed}、固定项置顶顺序、取消固定回落原位、刷新后仍在、清空按钮、
+超 30 条时只淘汰未固定项）
+\item \texttt{node test/tabs.test.js} → 标签页状态机 96/96（增删、同路径复用会切过去、关掉活动页
+之后激活右边（没有就左边）、循环切换的越界绕回、未命名标签只在未命名之间编号、
+24 个上限、\texttt{title()} 的脏标记、所有函数不改入参；\textbf{会话序列化}：只记有落点的标签、
+未命名在活动页时 \texttt{active} 为 null、重复路径去重、超上限截断、坏 JSON/非对象/没有
+\texttt{paths} 一律当没有、相对路径与非字符串项丢掉并计数、\texttt{//} 归一、存读往返一致）
+\item \texttt{node test/tabsdom.test.js \&\& ./build/shot …} → 标签页 92/92（真 WKWebView：启动时
+单个标签不显示标签栏、\texttt{⌘T} 新建、打字出脏点、\texttt{openPath} 开新标签并换 \texttt{\textless{}base\textgreater{}}、
+切回来正文还在、\textbf{撤销栈跨标签可用}、滚动位置跟着标签走、同一个文件不重复开、
+关脏标签要问而干净标签不问、关最后一个换成空白页、\texttt{⌃⇥} / \texttt{⌃⇧⇥} / \texttt{⌘⇧]} / \texttt{⌘⇧[} /
+\texttt{⌘W} / 中键关闭 / \texttt{⌘⇧T} 重开、DOM 与状态一致；\textbf{会话}：写盘只含磁盘文件、
+模拟重启后整排标签与前台页都回来、正文按磁盘重读（不保存的改动不跨重启）、
+被删的文件跳过且活动页兜底、只有相对路径时拒绝还原、未命名不污染会话）
+\item \texttt{node test/live.test.js} → 行内实时预览纯逻辑 87/87（\texttt{canLive} 只接单行无原子的块、
+\texttt{scan} 的标记区间与嵌套、\texttt{reveal} 的「严格在区间内」、\texttt{prefix} / \texttt{prefixKind}
+（标题可藏、列表引用不藏、任务框不算记号）、\texttt{diff} 的最小差异、\texttt{applyEdit} 与
+\texttt{cleanupAt} 的空标记清理、纯插入不动连续星号、不改入参）
+\item \texttt{node test/livedom.test.js \&\& ./build/shot …} → 行内实时预览 76/76（真 WKWebView：
+进块是渲染态且 \texttt{textContent} 里没有 \texttt{**}、光标进到强调里那对标记才现身、移开又藏回去、
+行首插字与强调里插字都落回原文、删空强调不留星号、自动配对出来的 \texttt{*} 能长成斜体、
+标题的 \texttt{\#\# } 藏起来且光标到行首才现形、行首退格一次去掉整个前缀并变回正文、
+贴着露出的标记退格删的是原文（不是死键）、Enter 分块与行首退格合并、
+撤销、代码/链接/多行/任务框退回 textarea、开关关掉退回、组字只在结束时落账、
+\texttt{.value} / \texttt{setSelectionRange} 这层 shim、退出后回到渲染态、反复进出不残留）
+\item \texttt{node test/bench.node.js} → 导出链路分阶段耗时基准（parse / docx / epub / latex /
+zip / base64），用于回归性能而不是功能；SKIP 时不影响测试结论
+\item \texttt{native-smoke.swift} → 状态查询返回 21 种支持语言；翻译请求正确到达系统，
+首次使用时语言包下载确认框正常弹出
+\item \texttt{native-reuse.swift}（真实语言包，不 mock）→ 首次 0.49s、第二次 0.08s、
+同语言 0.000s，\texttt{sessionStarts == 1}：确认全程只建一个会话、无任何系统弹窗
+\item \texttt{/Applications/OpenTypora.app} 启动、带文件 \texttt{open -a} 打开、无崩溃日志，
+已在真实窗口截图确认分栏视图（浅色/深色主题）
+\item 截图见 \texttt{docs/}（GitHub 浅色、Night 深色、分栏模式、翻译面板、目录/脚注、公式、
+表格编辑、图片尺寸、HTML 块渲染态与源码态、Word 导入效果、笔记链接与脚注浮层、Mermaid、
+Mermaid 深色与浅色、RevealJS 导出效果、Emoji 补全与表格拖动指示线、严格模式前后对比、
+文本片段与严格模式开关、代码块 Code Tools、最近文件固定、语法高亮（浅色/深色）、
+源码模式行号与高亮（浅色/深色）、导出主题的选项对话框与实际导出的夜间单页、
+专注模式与打字机（浅色/深色）、渲染态拼写波浪线与右键建议（浅色/深色）、
+版式（宋体 + 松开行距 + 暖纸背景 / 夜间楷体 / 偏好面板）、标签页（浅色 / 夜间）、
+行内实时预览（浅色 / 夜间 / 标题前缀现形）、集成测试结果）
+\end{itemize}
+
+
+\begin{quote}
+\textbf{跑集成测试的两个环境坑} 1. \texttt{build.sh} 每次都会重建 \texttt{build/}（旧目录挪到 \texttt{\$TMPDIR/typora-build-old-\textless{}pid\textgreater{}}），    把 \texttt{build/shot} 一起带走 —— 重建后要重新编译截图工具：    \texttt{swiftc -O -o build/shot test/shot.swift -framework Cocoa -framework WebKit}。 2. WKWebView 认为窗口被遮挡时会把 DOM 定时器降频到 \textasciitilde{}1 次/秒（锁屏、切到后台、\texttt{orderBack}    都会触发），测试里大量 \texttt{await sleep(220)} 会集体超时，表现为「默默卡死」。    \texttt{test/shot.swift} 里用私有开关 \texttt{\_setWindowOcclusionDetectionEnabled(false)} 关掉遮挡检测    （实测 50ms 定时器 2 秒内 7 次 → 37 次，期望 40），再加 \texttt{beginActivity} 抑制 App Nap。    有这一行才能在锁屏/后台状态下跑完整套件。
+\end{quote}
+
+\subsection{已知限制}
+
+\begin{itemize}
+\item 改名（Typora → OpenTypora）不会自动清理旧安装：\texttt{/Applications/Typora.app} 会一直躺在
+原处，bundle id 不同所以两个能并存；不要旧版就自己拖进废纸篓。两者\textbf{互不读取}
+对方的数据 —— OpenTypora 只用 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}，
+老的 \texttt{.../Typora/themes} 里的主题不会自动搬过来（自己 \texttt{cp *.css} 过去即可）。
+\item wiki 链接不做\textbf{改名跟踪}：存的是笔记名不是文件 id，目标改名后链接会变成灰色虚线
+（靠「按名字在文件树里找」只能兜住「挪目录」，兜不住「换名字」）。
+\item \texttt{[[} 选单只在打开了文件夹时有候选；没打开文件夹仍可手写 \texttt{[[相对路径/笔记]]}。
+\item 链接别名里不能再套 \texttt{]]}，也不能跨行。
+\item HTML 块里的 \texttt{\textless{}style\textgreater{}} 是全局生效的（与浏览器一致），写错会连带影响编辑器外观。
+\item 极短或无字母的文本（纯数字、表情、专有名词）本地判不出语言时会退回让系统识别，
+这种情况下仍可能弹一次语言选择；连续同类文本第二次起会复用已确认的会话。
+\item 分栏预览的滚动同步是按滚动比例的（非逐行锚定）；极端长短混排的文档
+两侧位置可能有偏差，点预览块跳源码不受影响。
+\item 导入：
+\begin{itemize}
+\item docx 里的代码块\textbf{语言标签会丢}（Word 没这个字段，导出时也只是样式名），围栏出来是 \texttt{
+而不是 }js。
+\item docx 的 OMML 公式（Word 里那种「插入 → 公式」）与 SmartArt、图表、文本框内容不解析，
+会整块跳过；批注与修订删除同理。
+\item 嵌套表格只保留第一层，内层退化成空单元格。
+\item HTML 导入只取结构：\texttt{\textless{}style\textgreater{}} 与外部 CSS 不参与转换（\texttt{\textless{}script\textgreater{}} 直接丢弃）。
+\item 下划线、高亮、字色、字号这些「纯视觉」属性不写进 Markdown —— md 没有对应语法，
+硬塞 HTML 标签会让正文变成源码。
+\end{itemize}
+\item 导出：
+\begin{itemize}
+\item docx 里的公式是 Cambria Math 字体的 \textbf{TeX 原文}（\texttt{E=mc\textasciicircum{}2}），不是排版后的公式；
+需要真正的公式对象得绕道 OMML 转换，暂未做。epub 里公式渲染成 HTML 上下标。
+\item 导出\textbf{不会联网}抓图：\texttt{http(s)://} 图片退化为 \texttt{[图片：alt]} 占位；想内嵌就先
+「右键 → 下载到本地」（或「编辑 → 下载全部远程图片」）把图落到 \texttt{assets/} 再导。
+本地相对路径与 \texttt{data:} URI 正常内嵌。
+\item epub 目前是\textbf{单章}（一个 \texttt{chapter.xhtml}）+ 嵌套目录；超长书稿不分卷更利于
+全篇搜索，但没有分章的资源边界。
+\item docx 的代码块是一段带 \texttt{w:br} 的 \texttt{CodeBlock} 段落（保留缩进与等宽），不是表格包边；
+Word 里选中复制仍是一整块。
+\item 表格的行列手柄只挂在主编辑区；分栏预览里的表格是只读的（改结构请回主编辑区）。
+\item 表格序列化会把整张表重排成标准 GFM（列宽重新计算），不保留原作者的列宽留白。
+\item 图片导出是\textbf{整页长图}（当前窗口宽度 × 全文高度），不是把每个块单独切图。
+\end{itemize}
+\item 拼写检查的边界（都是有意为之，不是漏点）：
+\begin{itemize}
+\item 判定交给系统词典，所以「语言」跟随系统设置，没有 per-document 语言切换。
+\item 系统词典对\textbf{全大写}词一律按缩写放过（\texttt{RECIEVE} 不报），首字母大写也会放过
+一部分专有名词；误报主要来自这里，右键「忽略此词」就是给它们的出口。
+\item 缩进式代码块（4 空格）本项目的解析器按段落渲染（屏幕上就是正文），所以里面的
+词照常检查；围栏代码块与行内代码一律跳过。
+\item 分栏预览（\texttt{\#split-prev}）不上色：分栏时 \texttt{\#editor} 停更，左栏源码 textarea
+本来就有系统原生检查。
+\end{itemize}
+\item 行内实时预览的边界（都是有意为之，不是漏点）：
+\begin{itemize}
+\item 只接\textbf{单行、4000 字以内、没有原子}的块：含反引号、\texttt{[ ]}、\texttt{\$}、\texttt{\textless{}} \texttt{\textgreater{}}、\texttt{|}、
+反斜杠，或者渲染出来带代码/链接/公式/行内 HTML/任务框的块，一律退回源码态。
+这些东西的「标记」里装着真内容（链接的 URL、公式的 TeX），藏了就没法改。
+\item \textbf{多行段落}（软换行）走源码态：换行在渲染态里是折行位置，和原文的 \texttt{\textbackslash{}n} 不是一回事。
+\item 藏起来的只有\textbf{行内标记与标题的 \texttt{\#\# }}。列表 \texttt{- } / \texttt{1. } 与引用 \texttt{\textgreater{} } 的前缀照原样
+显示 —— 它们带缩进语义，藏了会失去「增删缩进」的锚点。
+\item 编辑中形状变了（插进换行、\texttt{[}、\texttt{\$} 等）会当场退回源码态，不会拿渲染态硬扛。
+\item 显示坐标不含标记而原文坐标含：选区跨过一段藏着的标记时，视觉上看不出少了几个
+字符，但 \texttt{selectionStart/End} 读到的是原文偏移（与 textarea 一致）。
+\end{itemize}
+\item 标签会话的边界（功能上已无未做项，剩下的是有意为之的取舍）：
+\begin{itemize}
+\item \textbf{未命名标签}不进会话：重启后只回来有磁盘落点的那几篇，纯空白标签与没保存的
+正文不跨重启（后者归「未保存草稿」提示，一次只保一份）
+\item 多窗口共用同一份会话（\texttt{localStorage} 是全应用共享的）：两个窗口各开一批标签时，
+重启只回到最后写的那批；单窗口用标签页不受影响
+\end{itemize}
+\item 已知的键位取舍：\texttt{⌘⇧T} 归「重新打开已关闭的文件」，翻译因此挪到 \texttt{⌘⇧Y}
+—— 同一个键位挂两份原生菜单时 AppKit 只认菜单栏靠前的那条，另一条按不出来
+\item 与 Typora V1 的逐项功能核对（120 项：119 完整 / 0 部分 / 1 未实现）见
+\href{docs/v1-parity.md}{\texttt{docs/v1-parity.md}}，含二十轮补做记录与剩余缺口。
+\end{itemize}
+
+
+\subsection{许可证}
+
+MIT，见 \href{LICENSE}{LICENSE}。内置第三方组件：Mermaid（MIT）、KaTeX（MIT，含 woff2 字体）。
+
+\texttt{docs/v1-parity.md} 是与 Typora 1.14 的行为核对记录；Typora 是其权利人的商标，
+本项目与 Typora 官方没有任何关系，也不包含它的任何代码。
+
+\end{document}

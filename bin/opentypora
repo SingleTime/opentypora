@@ -1,0 +1,72 @@
+#!/bin/bash
+# opentypora — OpenTypora 的命令行入口
+#
+# 用法：
+#   opentypora <文件.md>…      打开文件（多个会各开一个窗口）
+#   opentypora <目录>          把目录作为工作区打开
+#   opentypora                 只激活应用
+#   cmd | opentypora -         从标准输入读 Markdown，落成临时文件后打开
+#   opentypora -v|--version    打印版本
+#   opentypora -h|--help       打印帮助
+#
+# 安装：./build.sh && sudo ./install-cli.sh
+set -euo pipefail
+
+APP="${OPENTYPORA_APP:-/Applications/OpenTypora.app}"
+
+if [ ! -d "$APP" ]; then
+  echo "找不到 ${APP}（可用 OPENTYPORA_APP 环境变量指定路径）" >&2
+  exit 1
+fi
+
+open_path() {
+  local p="$1"
+  if [ ! -e "$p" ]; then
+    echo "不存在：$p" >&2
+    exit 1
+  fi
+  # -n 强制新实例，才能一次开多个文件；-a 保证走我们的 bundle 而不是别的同名应用
+  open -n -a "$APP" "$p"
+}
+
+case "${1:-}" in
+  -h|--help)
+    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"
+    exit 0
+    ;;
+  -v|--version)
+    /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+      "$APP/Contents/Info.plist" 2>/dev/null || echo "unknown"
+    exit 0
+    ;;
+  -e|--edit)
+    # 从 stdin 读内容，写成临时文件再打开：等价 `echo '# hi' | opentypora -`
+    shift
+    tmp="$(mktemp -t opentypora)"; mv "$tmp" "$tmp.md"; tmp="$tmp.md"
+    cat > "$tmp"
+    open_path "$tmp"
+    exit 0
+    ;;
+  -)
+    tmp="$(mktemp -t opentypora)"; mv "$tmp" "$tmp.md"; tmp="$tmp.md"
+    cat > "$tmp"
+    open_path "$tmp"
+    exit 0
+    ;;
+  "")
+    open -a "$APP"
+    exit 0
+    ;;
+esac
+
+for arg in "$@"; do
+  case "$arg" in
+    -*)
+      echo "未知选项：${arg}（见 opentypora --help）" >&2
+      exit 2
+      ;;
+    *)
+      open_path "$arg"
+      ;;
+  esac
+done

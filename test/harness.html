@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>engine-harness</title>
+<style>
+  body { font: 13px/1.6 -apple-system, "PingFang SC", sans-serif; background:#fff; color:#24292f; margin:0; padding:18px 22px; }
+  h1 { font-size: 16px; margin: 0 0 10px; }
+  #result { font-weight: 700; font-size: 15px; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: inline-block; }
+  .ok { background: #dafbe1; color: #116329; }
+  .bad { background: #ffebe9; color: #c0392b; }
+  .line { padding: 2px 0; font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+  .pass { color: #116329; }
+  .fail { color: #c0392b; }
+  #hidden-editor { position: absolute; left: -99999px; top: 0; width: 800px; }
+  #hidden-editor #editor-scroll { height: 400px; overflow: auto; }
+</style>
+</head>
+<body>
+  <h1>OpenTypora 引擎集成测试（真实 WebView 运行时）</h1>
+  <div id="result">运行中…</div>
+  <div id="log"></div>
+  <div id="hidden-editor">
+    <div id="editor-scroll"><div id="editor"></div><textarea id="source-area"></textarea></div>
+  </div>
+  <script src="../app/js/md.js"></script>
+  <script src="../app/js/bridge.js"></script>
+  <script src="../app/js/editor.js"></script>
+  <script>
+  (function () {
+    var pass = 0, fail = 0, lines = [];
+    function assert(name, cond, detail) {
+      if (cond) { pass++; lines.push('<div class="line pass">✓ ' + name + '</div>'); }
+      else { fail++; lines.push('<div class="line fail">✗ ' + name + (detail ? ' — ' + detail : '') + '</div>'); }
+    }
+    function blockCount() { return Editor.getState().model.blocks.length; }
+    function srcArea() { return document.querySelector('#editor textarea.src'); }
+    function fireKey(ta, opts) {
+      var e = new KeyboardEvent('keydown', Object.assign({ bubbles: true, cancelable: true }, opts));
+      ta.dispatchEvent(e);
+    }
+    function type(ta, value) {
+      // 模拟输入：改值 + input 事件
+      ta.value = value;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function src() { return Editor.getValue(); }
+
+    Editor.init({});
+
+    // 1. 加载与渲染
+    Editor.load('# 标题\n\n段落 **粗体**。\n\n- 甲\n- 乙\n');
+    assert('加载：块数 = 3', blockCount() === 3, '实际 ' + blockCount());
+    assert('渲染：标题块存在', !!document.querySelector('#editor .blk.h1'));
+    assert('渲染：列表块存在', !!document.querySelector('#editor .blk.list ul li'));
+
+    // 2. 进块编辑
+    Editor.enterEdit(0, 2);
+    var ta = srcArea();
+    assert('进入编辑：textarea 存在', !!ta);
+    assert('进入编辑：光标在 offset 2', ta && ta.selectionStart === 2);
+    assert('编辑态：块带 editing 类', !!document.querySelector('#editor .blk.h1.editing'));
+
+    // 3. 标题级别切换 (Cmd+2)
+    fireKey(ta, { key: '2', metaKey: true });
+    assert('⌘2：块变为二级标题', srcArea().value.indexOf('## ') === 0, srcArea().value);
+
+    // 4. Esc 退出后回渲染态
+    fireKey(srcArea(), { key: 'Escape' });
+    assert('Escape：回到渲染态', !document.querySelector('#editor textarea.src'));
+
+    // 5. Enter 分块
+    Editor.load('abc');
+    Editor.enterEdit(0, 1);
+    fireKey(srcArea(), { key: 'Enter' });
+    assert('Enter：分成两块', blockCount() === 2, '实际 ' + blockCount());
+    assert('Enter：新块获焦且源码为 bc', srcArea() && srcArea().value === 'bc', srcArea() ? srcArea().value : 'null');
+    assert('Enter：序列化无损', src() === 'a\n\nbc', JSON.stringify(src()));
+
+    // 6. Backspace 合块
+    Editor.enterEdit(1, 0);
+    fireKey(srcArea(), { key: 'Backspace' });
+    assert('Backspace：合回一块', blockCount() === 1 && src() === 'abc', src());
+
+    // 7. 撤销
+    Editor.undo();
+    assert('撤销：回到两块', blockCount() === 2, '实际 ' + blockCount());
+    Editor.redo();
+    assert('重做：回到一块', blockCount() === 1 && src() === 'abc', src());
+
+    // 8. 列表续行
+    Editor.load('- 甲\n- 乙\n');
+    Editor.enterEdit(0, 3);
+    fireKey(srcArea(), { key: 'Enter' });
+    assert('列表 Enter：同块续行', srcArea().value === '- 甲\n- \n- 乙', JSON.stringify(srcArea().value));
+
+    // 9. 源码模式往返
+    var before = src();
+    Editor.toggleSource(true);
+    assert('源码模式：textarea 可见', document.getElementById('source-area').style.display === 'block');
+    Editor.toggleSource(false);
+    assert('源码模式：退出后内容一致', src() === before, JSON.stringify(src()));
+
+    // 10. 主题切换与字数
+    Editor.setTheme('night');
+    assert('主题切换：data-theme=night', document.documentElement.getAttribute('data-theme') === 'night');
+    Editor.setTheme('github');
+    var c = Editor.countWords.call(null) || MD.countWords(src());
+    assert('字数统计 > 0', MD.countWords(src()).words > 0);
+
+    // 11. 快捷键 ⌘B 包粗体
+    Editor.load('文字');
+    Editor.enterEdit(0, 2);
+    fireKey(srcArea(), { key: 'b', metaKey: true });
+    assert('⌘B：插入粗体占位', srcArea().value === '文字**粗体**', srcArea().value);
+
+    // 12. 表格 / 公式 / 代码渲染
+    Editor.load('| a | b |\n| --- | --- |\n| 1 | 2 |\n\n$$\n\\frac{a}{b}\n$$\n\n```js\nvar x = 1;\n```\n');
+    assert('表格渲染', !!document.querySelector('#editor .blk.table table'));
+    assert('公式渲染', !!document.querySelector('#editor .blk.mathblock .m-frac'));
+    assert('代码高亮', !!document.querySelector('#editor .blk.code .tok-kw'));
+
+    var box = document.getElementById('result');
+    box.textContent = (fail ? 'FAIL ' : 'ALL PASS ') + pass + '/' + (pass + fail);
+    box.className = fail ? 'bad' : 'ok';
+    document.getElementById('log').innerHTML = lines.join('');
+    document.title = fail ? 'FAIL ' + fail : 'PASS ' + pass;
+  })();
+  </script>
+</body>
+</html>
