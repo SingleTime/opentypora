@@ -865,7 +865,7 @@ node test/runall.js table math # 只跑指定套件
   行内实时预览（浅色 / 夜间 / 标题前缀现形）、集成测试结果）
 
 > **跑集成测试的两个环境坑**
-> 1. `build.sh` 每次都会重建 `build/`（旧目录挪到 `$TMPDIR/typora-build-old-<pid>`），
+> 1. `build.sh` 每次都会重建 `build/`（旧目录挪到 `$TMPDIR/opentypora-build-old-<pid>`），
 >    把 `build/shot` 一起带走 —— 重建后要重新编译截图工具：
 >    `swiftc -O -o build/shot test/shot.swift -framework Cocoa -framework WebKit`。
 > 2. WKWebView 认为窗口被遮挡时会把 DOM 定时器降频到 ~1 次/秒（锁屏、切到后台、`orderBack`

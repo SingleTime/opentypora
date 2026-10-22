@@ -29,7 +29,7 @@
 \section{OpenTypora}
 
 \begin{quote}
-原名「Typora（自研克隆版）」，为避免与商业软件重名改成 \textbf{OpenTypora}。 功能目标没变：对齐 Typora 1.14 的行为，front matter 里的 \texttt{typora-*} 键 （\texttt{typora-copy-images-to} / \texttt{typora-root-url}）保持兼容 —— 那些是文档格式约定， 改了就不认别人的文档了。 改名涉及的外部标识：bundle id \texttt{local.fw.opentypora}、可执行文件 \texttt{OpenTypora.app/Contents/MacOS/OpenTypora}、命令行 \texttt{opentypora}、 窗口标题与菜单栏都叫 OpenTypora。\textbf{旧数据会自动接上}：\texttt{localStorage} 里 \texttt{typora.*} 的偏好与会话首启搬到 \texttt{opentypora.*}。目录只用自己的—— 用户主题目录固定是 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}， 不读也不写真 Typora 的目录。
+原名「Typora（自研克隆版）」，为避免与商业软件重名改成 \textbf{OpenTypora}。 功能目标没变：对齐 Typora 1.14 的行为，front matter 里的 \texttt{typora-*} 键 （\texttt{typora-copy-images-to} / \texttt{typora-root-url}）保持兼容 —— 那些是文档格式约定， 改了就不认别人的文档了。 改名涉及的外部标识：bundle id \texttt{local.fw.opentypora}、可执行文件 \texttt{OpenTypora.app/Contents/MacOS/OpenTypora}、命令行 \texttt{opentypora}、 窗口标题与菜单栏都叫 OpenTypora。同一个数据目录里的旧键会在首启改名： \texttt{localStorage} 中 \texttt{typora.*} 的偏好与会话搬到 \texttt{opentypora.*}（目标键已有值不覆盖， 旧键随即删除）。目录只用自己的——用户主题目录固定是 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}，不读也不写真 Typora 的目录。
 \end{quote}
 
 从零实现的 Markdown 编辑器：块级所见即所得（WYSIWYG）、分栏「边写边看」、无损序列化、
@@ -972,7 +972,7 @@ Mermaid 深色与浅色、RevealJS 导出效果、Emoji 补全与表格拖动指
 
 
 \begin{quote}
-\textbf{跑集成测试的两个环境坑} 1. \texttt{build.sh} 每次都会重建 \texttt{build/}（旧目录挪到 \texttt{\$TMPDIR/typora-build-old-\textless{}pid\textgreater{}}），    把 \texttt{build/shot} 一起带走 —— 重建后要重新编译截图工具：    \texttt{swiftc -O -o build/shot test/shot.swift -framework Cocoa -framework WebKit}。 2. WKWebView 认为窗口被遮挡时会把 DOM 定时器降频到 \textasciitilde{}1 次/秒（锁屏、切到后台、\texttt{orderBack}    都会触发），测试里大量 \texttt{await sleep(220)} 会集体超时，表现为「默默卡死」。    \texttt{test/shot.swift} 里用私有开关 \texttt{\_setWindowOcclusionDetectionEnabled(false)} 关掉遮挡检测    （实测 50ms 定时器 2 秒内 7 次 → 37 次，期望 40），再加 \texttt{beginActivity} 抑制 App Nap。    有这一行才能在锁屏/后台状态下跑完整套件。
+\textbf{跑集成测试的两个环境坑} 1. \texttt{build.sh} 每次都会重建 \texttt{build/}（旧目录挪到 \texttt{\$TMPDIR/opentypora-build-old-\textless{}pid\textgreater{}}），    把 \texttt{build/shot} 一起带走 —— 重建后要重新编译截图工具：    \texttt{swiftc -O -o build/shot test/shot.swift -framework Cocoa -framework WebKit}。 2. WKWebView 认为窗口被遮挡时会把 DOM 定时器降频到 \textasciitilde{}1 次/秒（锁屏、切到后台、\texttt{orderBack}    都会触发），测试里大量 \texttt{await sleep(220)} 会集体超时，表现为「默默卡死」。    \texttt{test/shot.swift} 里用私有开关 \texttt{\_setWindowOcclusionDetectionEnabled(false)} 关掉遮挡检测    （实测 50ms 定时器 2 秒内 7 次 → 37 次，期望 40），再加 \texttt{beginActivity} 抑制 App Nap。    有这一行才能在锁屏/后台状态下跑完整套件。
 \end{quote}
 
 \subsection{已知限制}
@@ -982,6 +982,10 @@ Mermaid 深色与浅色、RevealJS 导出效果、Emoji 补全与表格拖动指
 原处，bundle id 不同所以两个能并存；不要旧版就自己拖进废纸篓。两者\textbf{互不读取}
 对方的数据 —— OpenTypora 只用 \texttt{\textasciitilde{}/Library/Application Support/OpenTypora/themes}，
 老的 \texttt{.../Typora/themes} 里的主题不会自动搬过来（自己 \texttt{cp *.css} 过去即可）。
+\item \texttt{typora.*} → \texttt{opentypora.*} 的自动改名\textbf{只在同一个 WKWebView 数据目录内生效}。
+bundle id 一变，数据目录也跟着变（\texttt{\textasciitilde{}/Library/WebKit/local.fw.opentypora} vs
+\texttt{local.fw.typora}），旧目录里的偏好与最近文件不会自己接上；要留就手动把
+\texttt{\textless{}旧目录\textgreater{}/.../LocalStorage/localstorage.sqlite3} 里 \texttt{typora.*} 那几行抄进新库。
 \item wiki 链接不做\textbf{改名跟踪}：存的是笔记名不是文件 id，目标改名后链接会变成灰色虚线
 （靠「按名字在文件树里找」只能兜住「挪目录」，兜不住「换名字」）。
 \item \texttt{[[} 选单只在打开了文件夹时有候选；没打开文件夹仍可手写 \texttt{[[相对路径/笔记]]}。

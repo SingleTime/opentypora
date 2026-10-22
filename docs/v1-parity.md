@@ -669,6 +669,31 @@ head/body 那格；第十二轮补上后 `E-3` 转 ✅，导出域 15/15。
 
 ---
 
+## 第二十一轮维护记录（2026-10-22 旧版清理与偏好迁移）
+
+不是功能，登记是因为顺着查出「改名后偏好到底搬没搬」这件事被写错了。
+
+| 事项 | 处理 |
+| --- | --- |
+| 旧版清理 | `/Applications/Typora.app`、`~/Library/WebKit/local.fw.typora`、`~/Library/Caches/local.fw.typora`、`~/Library/Preferences/local.fw.typora.plist`、空的 `~/Library/Application Support/Typora` 一并移入废纸篓（走 `mv` 到 `~/.Trash`，可回滚，不是 `rm`） |
+| 偏好迁移 | 旧库里 6 行 `typora.*` 用 `sqlite3` + `ATTACH` 原样灌进新库，首启由 `migrateLocalKeys()` 改名成 `opentypora.*`：目标键已有值不覆盖，旧键随即删除 |
+
+- **真坑：键级改名的适用范围比想象的窄。** WKWebView 的 localStorage 按 bundle id 分数据目录
+  （`~/Library/WebKit/<bundle id>/WebsiteData/Default/<origin hash>/…/localstorage.sqlite3`），
+  改名后 `local.fw.typora` 与 `local.fw.opentypora` 是两个互不相通的库，连 origin hash 目录名
+  都不同（`li24c…` vs `83s0l0…`）。所以在全新装置上 `migrateLocalKeys()` 永远扫不到
+  `typora.*` —— README 原先那句「**旧数据会自动接上**」不成立，已改成「同一个数据目录里的
+  旧键会在首启改名」，并在已知限制里写明跨 bundle id 要自己抄 `localstorage.sqlite3` 的行。
+- 搬运按 BLOB 整块拷、不解析再序列化，绕开 UTF-16 编码来回转；迁前迁后各留一份 sqlite 备份。
+- 校验：迁移后 `opentypora.prefs` 896 字节 / 29 个键、JSON 可解析，自定义背景色、字体、
+  行距与 `exportCmds` 全部到位；`opentypora.recent/session/theme` 没被旧值覆盖。
+- 顺手把 `docs/exports/` 三份样例按新 README 重导：`.tex` 52 KB（以 `\end{document}` 收尾）、
+  `.docx` 1.09 MB（`media 4 / warn 0`）、`.epub` 109 KB。
+
+回归：`node test/runall.js` → **3318/3318**（57 个套件，无代码改动）。
+
+---
+
 ## 核对方法
 
 - 逐条比对官方功能页：Markdown Reference、File Management、Search、Images、Export、
