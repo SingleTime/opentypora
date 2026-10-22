@@ -7,10 +7,10 @@
 >
 > 改名涉及的外部标识：bundle id `local.fw.opentypora`、可执行文件
 > `OpenTypora.app/Contents/MacOS/OpenTypora`、命令行 `opentypora`、
-> 窗口标题与菜单栏都叫 OpenTypora。**旧数据会自动接上**：`localStorage`
-> 里 `typora.*` 的偏好与会话首启搬到 `opentypora.*`。目录只用自己的——
-> 用户主题目录固定是 `~/Library/Application Support/OpenTypora/themes`，
-> 不读也不写真 Typora 的目录。
+> 窗口标题与菜单栏都叫 OpenTypora。同一个数据目录里的旧键会在首启改名：
+> `localStorage` 中 `typora.*` 的偏好与会话搬到 `opentypora.*`（目标键已有值不覆盖，
+> 旧键随即删除）。目录只用自己的——用户主题目录固定是
+> `~/Library/Application Support/OpenTypora/themes`，不读也不写真 Typora 的目录。
 
 从零实现的 Markdown 编辑器：块级所见即所得（WYSIWYG）、分栏「边写边看」、无损序列化、
 原生文件读写、多标签页、macOS 本地翻译、KaTeX 公式、Mermaid 图表、工作区搜索、
@@ -880,6 +880,10 @@ node test/runall.js table math # 只跑指定套件
   原处，bundle id 不同所以两个能并存；不要旧版就自己拖进废纸篓。两者**互不读取**
   对方的数据 —— OpenTypora 只用 `~/Library/Application Support/OpenTypora/themes`，
   老的 `.../Typora/themes` 里的主题不会自动搬过来（自己 `cp *.css` 过去即可）。
+- `typora.*` → `opentypora.*` 的自动改名**只在同一个 WKWebView 数据目录内生效**。
+  bundle id 一变，数据目录也跟着变（`~/Library/WebKit/local.fw.opentypora` vs
+  `local.fw.typora`），旧目录里的偏好与最近文件不会自己接上；要留就手动把
+  `<旧目录>/.../LocalStorage/localstorage.sqlite3` 里 `typora.*` 那几行抄进新库。
 - wiki 链接不做**改名跟踪**：存的是笔记名不是文件 id，目标改名后链接会变成灰色虚线
   （靠「按名字在文件树里找」只能兜住「挪目录」，兜不住「换名字」）。
 - `[[` 选单只在打开了文件夹时有候选；没打开文件夹仍可手写 `[[相对路径/笔记]]`。
