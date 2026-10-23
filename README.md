@@ -16,6 +16,24 @@ AppKit + WKWebView 原生外壳，前端纯 HTML/CSS/JS，唯一第三方依赖�
 mermaid.min.js（3.4 MB，按需加载）与 KaTeX 0.19（0.64 MB，含 20 个 woff2 字体），
 产物约 5.8 MB。
 
+![OpenTypora 演示：在正文里打字，标记边打边现身；松手后标记消失、文字变成粗体；切分栏；换夜间主题](docs/opentypora-demo.gif)
+
+> 11 秒动图：`⌘⇧L` 之外的一切都在正文里直接做 —— 打字时 Markdown 标记才现身，
+> 光标离开这一段就藏回去；切分栏看源码与预览并排；再换夜间主题。
+> 动图由 `test/recdemo.js` 生成演示页、`test/recdemo.swift` 开窗录制、ffmpeg 转 GIF，可复现。
+
+## 安装
+
+从 [Releases](https://github.com/SingleTime/opentypora/releases) 下 `OpenTypora-*.zip`，
+解压后拖进 `/Applications`。应用是 ad-hoc 签名（没有 Apple 开发者证书），首次打开需要
+右键 → 打开，或者执行一次：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OpenTypora.app
+```
+
+想自己编：见[从源码构建](#从源码构建)。
+
 ## 截图
 
 | 浅色（多标签页） | 夜间 |
@@ -163,12 +181,15 @@ opentypora/
 │   ├── bench.node.js     基准入口：`node test/bench.node.js`，出各阶段耗时
 │   ├── native-smoke.swift 原生翻译链路冒烟测试
 │   ├── native-reuse.swift 原生会话复用 / 同语言短路验证（真实翻译）
-│   └── shot.swift        离屏截图工具（自检 UI 用）
+│   ├── shot.swift        离屏截图工具（自检 UI 用）
+│   ├── recdemo.js        生成 README 演示动图的页面（app/__recdemo.html）
+│   └── recdemo.swift     开带标题栏的窗口跑演示页，供 screencapture 录制
 ├── build.sh              一键构建：图标 → 编译 → 组装 bundle → ad-hoc 签名
-└── docs/                  spec.md（功能规格与验证记录）+ 验证截图 + exports/（README 导出的 docx / epub / tex 样例）
+└── docs/                  spec.md（功能规格与验证记录）+ opentypora-demo.gif +
+                           验证截图 + exports/（README 导出的 docx / epub / tex 样例）
 ```
 
-## 构建与安装
+## 从源码构建
 
 要求：macOS（已在 14/15 上验证）、Xcode Command Line Tools（要 `swiftc`）。没有 npm 依赖，
 也不需要 Xcode 工程文件。

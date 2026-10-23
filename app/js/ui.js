@@ -1641,6 +1641,9 @@
     if (force === true && Editor.isSplitMode()) return;
     var now = Split.toggle(force);
     syncSplitBtn();
+    // Split.enter() 是「先切模式、后把全文填进 textarea」，上面这一拍 read 到的是空源码，
+    // 状态栏字数会停在 0 字 · 0 字符。等这一轮跑完再同步一次账目才对。
+    setTimeout(syncSplitBtn, 0);
     if (now) toast('分栏模式：左侧编辑，右侧实时预览 · ⌘⇧L 切回');
   }
 
