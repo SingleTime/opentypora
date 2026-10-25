@@ -24,13 +24,42 @@ mermaid.min.js（3.4 MB，按需加载）与 KaTeX 0.19（0.64 MB，含 20 个 w
 
 ## 安装
 
-从 [Releases](https://github.com/SingleTime/opentypora/releases) 下 `OpenTypora-*.zip`，
-解压后拖进 `/Applications`。应用是 ad-hoc 签名（没有 Apple 开发者证书），首次打开需要
-右键 → 打开，或者执行一次：
+支持 macOS 12 及以上（主要在 14 / 15 上验证），仅 Apple Silicon。
+
+应用是 **ad-hoc 签名**——没有 Apple 开发者证书，也没做公证。这意味着系统一定会拦第一次，
+和软件本身可不可信无关。下面三种方式都已经把这个处理掉了。
+
+### 方式一：一行命令
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SingleTime/opentypora/main/install.sh | bash
+```
+
+下载最新版 → 装进 `/Applications` → 清掉隔离属性 → 直接启动。脚本就是仓库里的
+[`install.sh`](install.sh)，执行前可以先读一遍；它只动 `/Applications/OpenTypora.app`
+和临时目录。
+
+### 方式二：手动下载
+
+1. 从 [Releases](https://github.com/SingleTime/opentypora/releases) 下 `OpenTypora-*.zip`，
+   解压后把 `OpenTypora.app` 拖进 `/Applications`
+2. 双击它，会提示「Apple 无法验证…」。点「完成」关掉对话框
+3. **一分钟内**打开 **系统设置 → 隐私与安全性**，往下滚到「安全性」区，会看到
+   「已阻止使用 OpenTypora」，点旁边的 **仍要打开**，输密码
+4. 再双击一次，在确认框里点「打开」
+
+> 第 3 步的按钮只在拦截发生后大约一小时内出现，过期就重新双击一次再去看。
+
+### 方式三：终端里解除隔离
+
+如果你习惯命令行，跳过上面第 2–4 步：
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/OpenTypora.app
 ```
+
+> **注意**：macOS 15 起，右键 → 打开这条老办法已经失效了（[Apple 已移除](https://developer.apple.com/news/?id=saqachfa)），
+> 只能走系统设置或上面的命令。
 
 想自己编：见[从源码构建](#从源码构建)。
 
@@ -96,6 +125,7 @@ opentypora/
 │   ├── makeicon.swift    生成应用图标（icns）
 │   └── Info.plist
 ├── bin/opentypora        命令行入口（文件/目录/`-` 读 stdin/`-v`/`-h`）
+├── install.sh            从 Release 下载并装进 /Applications（清隔离属性，一行命令安装）
 ├── install-cli.sh        把 CLI 装进 PATH（默认 /usr/local/bin）
 ├── test/
 │   ├── parser.test.js    121 项解析器单测（node test/parser.test.js）
