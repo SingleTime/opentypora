@@ -6,24 +6,29 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend-tests:
-    name: Frontend unit tests (Node)
-    runs-on: ubuntu-latest
+    # 跑在 macOS 上：cli / spell / pdfbook / export 这几个「纯 Node」套件实际上会调
+    # 系统命令行、系统词典、PDFKit，在 Linux 上必然红。
+    name: Frontend tests (Node)
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
-      # 纯 Node 套件（解析器、导出器、工作区等）。依赖 WKWebView 的 harness 套件
-      # 只在 macOS 上能跑，这里跳过。
+          node-version: '22'
+      # 依赖 WKWebView 的 harness 套件由本地 ./build.sh + build/shot 负责，CI 跳过。
       - run: node test/runall.js --node-only
 
   web-build:
     name: Web build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: ./build-web.sh
       - name: Assert output is complete
         run: |
@@ -43,7 +48,7 @@ jobs:
     name: macOS app build
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: ./build.sh
       - name: Assert bundle
         run: |
