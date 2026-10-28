@@ -38,23 +38,3 @@ jobs:
         run: node test/runall.js --node-only
         env:
           OPENTYPORA_APP: ${{ github.workspace }}/build/OpenTypora.app
-
-  web-build:
-    name: Web build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: ./build-web.sh
-      - name: Assert output is complete
-        run: |
-          test -f web/index.html
-          test -f web/js/web-shim.js
-          test -f web/js/bridge.js
-          test -f web/js/ui.js
-          grep -q 'js/web-shim.js' web/index.html
-          if ls web/__*.html >/dev/null 2>&1; then
-            echo "测试页 __*.html 不应进网页版产物" >&2
-            exit 1
-          fi
-          echo "files: $(find web -type f | wc -l)"
-          du -sh web

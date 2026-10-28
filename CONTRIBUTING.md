@@ -18,7 +18,6 @@ These are the reasons the app is 5.8 MB, and they are not negotiable:
 
 - macOS 12+ on Apple Silicon, Xcode command line tools (`swiftc`, `iconutil`)
 - Node 18+ for the test suites
-- `rsync` and `python3` for the web build
 
 ## Build and run
 
@@ -42,22 +41,6 @@ node test/runall.js table math      # selected suites
 The harness suites (`table`, `doc`, `mermaid`, …) generate an `app/__*.html` page and render it in a
 real offscreen `WKWebView` through `build/shot`. They check rendered geometry, not mocks — so they
 only run on macOS after `./build.sh`.
-
-## Web build
-
-```bash
-./build-web.sh      # app/ minus __*.html + web-src/web-shim.js → web/
-```
-
-`web/` is generated and gitignored. Two rules:
-
-- Edit frontend behaviour in `app/`, never in `web/`.
-- Browser-only adaptations belong in `web-src/web-shim.js`, which replaces `Bridge` (the native
-  message-handler layer) with Web APIs. If a capability cannot exist in a browser, make it degrade
-  with a visible notice instead of failing silently.
-
-Behaviour that differs between the two targets is gated on `window.Bridge.web` — set by the shim,
-absent in the native shell.
 
 ## Sending a patch
 

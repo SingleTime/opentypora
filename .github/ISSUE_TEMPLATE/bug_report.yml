@@ -38,7 +38,6 @@ body:
       options:
         - macOS app, release build
         - macOS app, built from source
-        - Web build (./build-web.sh) in a browser
     validations:
       required: true
 
