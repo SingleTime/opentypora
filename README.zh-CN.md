@@ -1,5 +1,8 @@
 # OpenTypora
 
+[![CI](https://github.com/SingleTime/opentypora/actions/workflows/ci.yml/badge.svg)](https://github.com/SingleTime/opentypora/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [English](README.md) · 简体中文
 
 > macOS 单平台：AppKit + WKWebView 外壳，前端纯 HTML/CSS/JS，不依赖 npm。

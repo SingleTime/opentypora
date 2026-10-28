@@ -1,5 +1,8 @@
 # OpenTypora
 
+[![CI](https://github.com/SingleTime/opentypora/actions/workflows/ci.yml/badge.svg)](https://github.com/SingleTime/opentypora/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 English · [简体中文](README.zh-CN.md)
 
 A free, open-source Markdown editor for macOS, built from scratch — native shell, no Electron.
