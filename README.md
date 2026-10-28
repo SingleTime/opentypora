@@ -8,6 +8,14 @@ The shell is Swift/AppKit with a WKWebView; the frontend is plain HTML/CSS/JS wi
 bundler, no `node_modules`**. The whole app bundle is 5.8 MB and the release zip is about 2 MB.
 MIT licensed.
 
+**Try it without installing anything.** The same frontend also runs in a browser:
+[opentypora-web](https://opentypora-web.app.workbuddy.host/?sharecode=N7ZA4BRQLF). `./build-web.sh`
+copies `app/` into a static site and swaps the native bridge for
+[`web-src/web-shim.js`](web-src/web-shim.js), which reimplements the same API on File System Access,
+Blob downloads and `window.print()`. Everything in the editing core works there — blocks, inline
+preview, split view, themes, KaTeX, Mermaid, export. Folder workspace, local translation, system
+dictionary and custom export commands need the native shell and degrade with a visible notice.
+
 ![OpenTypora demo: typing inside a paragraph, Markdown markers appearing while the caret is in the block and collapsing back to formatted text when it leaves, then switching to split view and to the Night theme](docs/opentypora-demo.gif)
 
 > An 11-second recording. `⌘⇧L`, split view and themes are the only things behind a menu — everything
@@ -322,11 +330,13 @@ opentypora/
 │       ├── zip.js        minimal store-mode ZIP writer, zero dependencies
 │       └── …             tables, images, workspace, tabs, split view, find, snippets, emoji
 ├── native/               Swift: main.swift (shell + bridge), makeicon, spell, translate, pdfbook
+├── web-src/              browser adapter: web-shim.js reimplements the Bridge API on Web standards
 ├── bin/opentypora        CLI entry point
 ├── install.sh            download the release and install to /Applications
 ├── install-cli.sh        put the CLI on PATH
 ├── test/                 57 suites: Node unit tests plus WKWebView integration tests
 ├── build.sh              icon → compile → assemble bundle → ad-hoc sign
+├── build-web.sh          app/ minus test pages + web-src/web-shim.js → web/ (static site)
 └── docs/                 spec.md, screenshots, and sample exports
 ```
 
@@ -360,6 +370,15 @@ A full list is in the [Chinese README](README.zh-CN.md#已知限制). The ones w
   dropped rather than smuggled in as raw HTML
 - The table handles live in the main editor; tables in split-preview are read-only
 - ePub export produces a single `chapter.xhtml` with a nested table of contents
+- **The browser build cannot touch the filesystem the way the app does**: no folder workspace, no
+  local translation, no system dictionary, no custom export commands. Saving goes through
+  File System Access where available and falls back to a download
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the prerequisites, the test suites, and the three rules a
+patch has to respect (no npm, no Electron, byte-exact round trips). Bug reports are much easier to
+act on with a minimal Markdown sample.
 
 ## License
 

@@ -57,7 +57,26 @@
     '---',
     '',
     '专注模式会把无关段落调暗，打字机模式让当前行始终停在屏幕中央——都在右下角。'
-  ].join('\n');
+  ];
+
+  /* 网页版（web-shim.js 会置 window.Bridge.web）：欢迎文档里补一段与桌面版的差异说明，
+     并把「⌘⇧O 打开文件夹」那条换成网页版说法。桌面版走不到这里，文案保持原样。 */
+  if (window.Bridge && window.Bridge.web) {
+    var at = WELCOME.indexOf('## 试试这些');
+    if (at > 0) {
+      WELCOME.splice(at, 0,
+        '> 这里是**网页版**：和桌面版共用同一套编辑内核，都是纯 HTML/CSS/JS、不依赖 npm。',
+        '> 编辑、分栏、主题、公式图表、导出都能用；**文件夹工作区、本地翻译、自定义导出命令**要用桌面版。',
+        '');
+    }
+    for (var wi = 0; wi < WELCOME.length; wi++) {
+      if (WELCOME[wi].indexOf('`⌘⇧O`') >= 0) {
+        WELCOME[wi] = '- `⌘S` 保存、`⌘O` 打开文件（网页版里保存 = 下载一份 .md 到本地）';
+        break;
+      }
+    }
+  }
+  WELCOME = WELCOME.join('\n');
 
   /* ------------------------------------------------ 工具 */
   function $(id) { return document.getElementById(id); }
@@ -222,7 +241,9 @@
   function renderTree() {
     var box = $('tree');
     if (!treeRoot.length) {
-      box.innerHTML = '<div class="outline-empty">⌘⇧O 打开一个文件夹</div>';
+      box.innerHTML = '<div class="outline-empty">' +
+        (window.Bridge && window.Bridge.web ? '文件夹工作区需要桌面版' : '⌘⇧O 打开一个文件夹') +
+        '</div>';
       return;
     }
     box.innerHTML = treeHTML(treeRoot, 0);

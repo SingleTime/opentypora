@@ -18,6 +18,12 @@ AppKit + WKWebView 原生外壳，前端纯 HTML/CSS/JS，唯一第三方依赖�
 mermaid.min.js（3.4 MB，按需加载）与 KaTeX 0.19（0.64 MB，含 20 个 woff2 字体），
 产物约 5.8 MB。
 
+**不想装也能试**：同一套前端也跑在浏览器里 —— [网页版](https://opentypora-web.app.workbuddy.host/?sharecode=N7ZA4BRQLF)。
+`./build-web.sh` 把 `app/` 复制成静态站，并把原生桥接换成
+[`web-src/web-shim.js`](web-src/web-shim.js)（用 File System Access / Blob 下载 / `window.print()`
+重实现同一组 API）。编辑内核的能力都在：块级编辑、行内实时预览、分栏、主题、KaTeX、Mermaid、导出；
+文件夹工作区、本地翻译、系统词典、自定义导出命令需要原生外壳，在网页版里会明确提示而不是假装成功。
+
 ![OpenTypora 演示：在正文里打字，标记边打边现身；松手后标记消失、文字变成粗体；切分栏；换夜间主题](docs/opentypora-demo.gif)
 
 > 11 秒动图：`⌘⇧L` 之外的一切都在正文里直接做 —— 打字时 Markdown 标记才现身，
@@ -216,7 +222,9 @@ opentypora/
 │   ├── shot.swift        离屏截图工具（自检 UI 用）
 │   ├── recdemo.js        生成 README 演示动图的页面（app/__recdemo.html）
 │   └── recdemo.swift     开带标题栏的窗口跑演示页，供 screencapture 录制
+├── web-src/               浏览器适配层：web-shim.js 用 Web API 重实现 Bridge
 ├── build.sh              一键构建：图标 → 编译 → 组装 bundle → ad-hoc 签名
+├── build-web.sh          生成网页版：app/（去掉测试页）+ web-src/web-shim.js → web/
 └── docs/                  spec.md（功能规格与验证记录）+ opentypora-demo.gif +
                            验证截图 + exports/（README 导出的 docx / epub / tex 样例）
 ```

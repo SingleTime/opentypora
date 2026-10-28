@@ -1,6 +1,9 @@
 # 构建产物（./build.sh 生成）
 build/
 
+# 网页版产物（./build-web.sh 生成；源码在 app/ 与 web-src/）
+web/
+
 # 测试与演示生成的 harness 页，每次跑测试都会重建
 app/__*.html
 
