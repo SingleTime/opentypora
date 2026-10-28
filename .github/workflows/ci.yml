@@ -11,18 +11,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  frontend-tests:
-    # 跑在 macOS 上：cli / spell / pdfbook / export 这几个「纯 Node」套件实际上会调
-    # 系统命令行、系统词典、PDFKit，在 Linux 上必然红。
-    name: Frontend tests (Node)
+  macos:
+    name: macOS build + tests
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      # 依赖 WKWebView 的 harness 套件由本地 ./build.sh + build/shot 负责，CI 跳过。
-      - run: node test/runall.js --node-only
+
+      - name: Build app bundle
+        run: ./build.sh
+
+      - name: Assert bundle
+        run: |
+          test -d build/OpenTypora.app
+          test -x build/OpenTypora.app/Contents/MacOS/OpenTypora
+          test -f build/OpenTypora.app/Contents/Resources/app/js/md.js
+          codesign -dv build/OpenTypora.app
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" \
+            build/OpenTypora.app/Contents/Info.plist
+
+      # 纯 Node 套件。需要 WKWebView 渲染的 harness 套件要 build/shot 起窗口，CI 里跳过。
+      # cli 套件会从 Info.plist 取版本号，所以必须先把 bundle 指给 OPENTYPORA_APP。
+      - name: Frontend tests
+        run: node test/runall.js --node-only
+        env:
+          OPENTYPORA_APP: ${{ github.workspace }}/build/OpenTypora.app
 
   web-build:
     name: Web build
@@ -43,18 +58,3 @@ jobs:
           fi
           echo "files: $(find web -type f | wc -l)"
           du -sh web
-
-  macos-build:
-    name: macOS app build
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: ./build.sh
-      - name: Assert bundle
-        run: |
-          test -d build/OpenTypora.app
-          test -x build/OpenTypora.app/Contents/MacOS/OpenTypora
-          test -f build/OpenTypora.app/Contents/Resources/app/js/md.js
-          codesign -dv build/OpenTypora.app
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" \
-            build/OpenTypora.app/Contents/Info.plist
