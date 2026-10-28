@@ -1,0 +1,75 @@
+name: Bug report
+description: Something does not work as expected
+title: "[bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most reports here turn out to be environment-specific, so the fields below matter.
+        If the bug needs a particular document, please paste the smallest Markdown sample that
+        still reproduces it — parser and round-trip issues can rarely be reproduced from a prose
+        description alone.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a file containing ...
+        2. Put the caret after the second `|` of the table row
+        3. Press Backspace
+        4. The table loses its header alignment
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which build
+      options:
+        - macOS app, release build
+        - macOS app, built from source
+        - Web build (./build-web.sh) in a browser
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag, or the commit hash you built from.
+      placeholder: v1.0.0 / 8c4b384
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: macOS or browser version
+      placeholder: macOS 15.1, Apple Silicon — or Chrome 130 on macOS
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: Minimal Markdown sample
+      description: The smallest document that still reproduces it. Fenced code blocks are fine.
+      render: markdown
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I read the documented trade-offs in docs/spec.md and this is not one of them
+          required: false

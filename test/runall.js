@@ -22,8 +22,11 @@ const SUITES = [
   ['edit2', 20]
 ];
 
-const only = process.argv.slice(2);
-const list = only.length ? SUITES.filter(function (s) { return only.indexOf(s[0]) >= 0; }) : SUITES;
+const argv = process.argv.slice(2);
+const nodeOnly = argv.indexOf('--node-only') >= 0;   // CI 用：只跑不依赖 WKWebView 的纯 Node 套件
+const only = argv.filter(function (a) { return a.charAt(0) !== '-'; });
+const list = (only.length ? SUITES.filter(function (s) { return only.indexOf(s[0]) >= 0; }) : SUITES)
+  .filter(function (s) { return !nodeOnly || s[1] === 0; });
 
 let totalPass = 0, totalCatch = 0, bad = [];
 

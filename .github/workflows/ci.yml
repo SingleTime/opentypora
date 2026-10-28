@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frontend-tests:
+    name: Frontend unit tests (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # 纯 Node 套件（解析器、导出器、工作区等）。依赖 WKWebView 的 harness 套件
+      # 只在 macOS 上能跑，这里跳过。
+      - run: node test/runall.js --node-only
+
+  web-build:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./build-web.sh
+      - name: Assert output is complete
+        run: |
+          test -f web/index.html
+          test -f web/js/web-shim.js
+          test -f web/js/bridge.js
+          test -f web/js/ui.js
+          grep -q 'js/web-shim.js' web/index.html
+          if ls web/__*.html >/dev/null 2>&1; then
+            echo "测试页 __*.html 不应进网页版产物" >&2
+            exit 1
+          fi
+          echo "files: $(find web -type f | wc -l)"
+          du -sh web
+
+  macos-build:
+    name: macOS app build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./build.sh
+      - name: Assert bundle
+        run: |
+          test -d build/OpenTypora.app
+          test -x build/OpenTypora.app/Contents/MacOS/OpenTypora
+          test -f build/OpenTypora.app/Contents/Resources/app/js/md.js
+          codesign -dv build/OpenTypora.app
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" \
+            build/OpenTypora.app/Contents/Info.plist

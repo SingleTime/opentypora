@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest a capability or a change in behaviour
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This editor deliberately stays small: no npm, no bundler, no Electron. Proposals that
+        keep it that way land much faster than ones that need a dependency.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: Describe the situation, not the solution. What document, what workflow, what breaks down today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: Existing shortcuts, workarounds, or a competing editor that does it well.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where should it live
+      options:
+        - Editing core (blocks, inline preview, tables, undo)
+        - Rendering (math, Mermaid, code highlighting)
+        - Files and workspace
+        - Export / import
+        - Native shell (menus, translation, PDF)
+        - Web build
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This does not require adding a runtime dependency
+          required: false
+        - label: I would be willing to work on a patch
+          required: false

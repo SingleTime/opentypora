@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: How to build, test and send a patch
+    url: https://github.com/SingleTime/opentypora/blob/main/CONTRIBUTING.md
+    about: Prerequisites, the test suites, and the rules a patch has to respect.
+  - name: Try the browser build first
+    url: https://opentypora-web.app.workbuddy.host/?sharecode=N7ZA4BRQLF
+    about: Same editing core, no install. Useful to check whether a bug is macOS-specific.
