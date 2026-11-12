@@ -29,7 +29,9 @@ mermaid.min.js（3.4 MB，按需加载）与 KaTeX 0.19（0.64 MB，含 20 个 w
 
 ## 安装
 
-支持 macOS 12 及以上（主要在 14 / 15 上验证），仅 Apple Silicon。
+支持 macOS 26 及以上，仅 Apple Silicon。构建时显式指定部署目标（`-target arm64-apple-macos26.0`）；
+26.0 是真实下限，因为内置翻译用了 `TranslationSession.canRequestDownloads` 与
+`TranslationError.notInstalled`，这两个 API 都是 26.0 才有的。
 
 应用是 **ad-hoc 签名**——没有 Apple 开发者证书，也没做公证。这意味着系统一定会拦第一次，
 和软件本身可不可信无关。下面三种方式都已经把这个处理掉了。

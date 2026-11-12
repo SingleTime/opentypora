@@ -32,7 +32,9 @@ preview. This one takes a third route:
 
 ## Install
 
-Requires macOS 12 or later (tested on 14 / 15), Apple Silicon only.
+Requires macOS 26 or later, Apple Silicon only. The build sets its deployment target explicitly
+(`-target arm64-apple-macos26.0`); 26.0 is the real floor because the in-app translation uses
+`TranslationSession.canRequestDownloads` and `TranslationError.notInstalled`, both introduced in 26.0.
 
 The app is **ad-hoc signed** — no Apple Developer certificate, no notarization. The system will block
 it on first launch; that is about the signature, not about the software. All three paths below handle it.
