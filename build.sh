@@ -10,10 +10,14 @@ NAME="OpenTypora"
 # 部署目标。必须显式指定：不写 -target 时 swiftc 用构建机的 SDK 版本，
 # 于是「在 macOS 27 上构建」= 产物 minos 27.0，在 26 及以下系统直接打不开，
 # 报「这个版本不能与此版本的 macOS 配合使用」。
-# 26.0 是代码的真实下限：translate.swift 用了 Translation 的
-# session.canRequestDownloads 与 TranslationError.notInstalled，两者都是 26.0 起。
-# 想支持更老的系统，得先给这两处加 @available 回退，再改这里。
-MACOS_MIN="${MACOS_MIN:-26.0}"
+#
+# 13.0 是代码的真实下限：
+#   - Translation 框架（15.0 起）→ translate.swift 整个类型已 @available(macOS 15.0, *)，
+#     且框架用 -weak_framework 弱链接，13/14 上不加载、翻译功能自动缺席
+#   - session.canRequestDownloads / TranslationError.notInstalled（26.0 起）→ 已加 #available 回退
+#   - Task.sleep(nanoseconds:) 需要 13.0
+# 再往下（12）Swift 并发运行时和前端 WKWebView 特性都撑不住，不再降。
+MACOS_MIN="${MACOS_MIN:-13.0}"
 ARCH="${ARCH:-arm64}"
 TARGET="${ARCH}-apple-macos${MACOS_MIN}"
 
@@ -37,7 +41,8 @@ swiftc -O -target "$TARGET" -o "$APP/Contents/MacOS/$NAME" \
   "$ROOT/native/pdfbook.swift" \
   "$ROOT/native/webexport.swift" \
   "$ROOT/native/spell.swift" \
-  -framework Cocoa -framework WebKit -framework SwiftUI -framework Translation -framework PDFKit
+  -framework Cocoa -framework WebKit -framework SwiftUI -framework PDFKit \
+  -Xlinker -weak_framework -Xlinker Translation
 
 echo "==> 组装 Bundle"
 cp "$ROOT/native/Info.plist" "$APP/Contents/Info.plist"

@@ -11,7 +11,7 @@
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
+  <string>1.0.1</string>
   <key>CFBundleExecutable</key>
   <string>OpenTypora</string>
   <key>CFBundlePackageType</key>
@@ -21,7 +21,7 @@
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>
-  <string>26.0</string>
+  <string>13.0</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSPrincipalClass</key>

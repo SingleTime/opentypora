@@ -16,7 +16,7 @@ These are the reasons the app is 5.8 MB, and they are not negotiable:
 
 ## Prerequisites
 
-- macOS 26+ on Apple Silicon, Xcode command line tools (`swiftc`, `iconutil`)
+- macOS 13+ on Apple Silicon, Xcode command line tools (`swiftc`, `iconutil`)
 - Node 18+ for the test suites
 
 ## Build and run

@@ -121,8 +121,10 @@ final class AppController: NSObject, NSApplicationDelegate, WKNavigationDelegate
         window.contentView = container
         window.makeKeyAndOrderFront(nil)
 
-        // 翻译会话需要挂在视图树里才有效（1pt 隐形视图）
-        TranslationService.shared.attach(to: container)
+        // 翻译会话需要挂在视图树里才有效（1pt 隐形视图）；15 以下没有 Translation 框架
+        if #available(macOS 15.0, *) {
+            TranslationService.shared.attach(to: container)
+        }
     }
 
     func loadFrontend() {
@@ -360,7 +362,22 @@ final class AppController: NSObject, NSApplicationDelegate, WKNavigationDelegate
 
     func handle(id: String, method: String, params: [String: Any]) {
         // 本地翻译相关方法由 translate.swift 接管
-        if TranslationService.shared.handle(id: id, method: method, params: params, controller: self) {
+        if #available(macOS 15.0, *) {
+            if TranslationService.shared.handle(id: id, method: method, params: params, controller: self) {
+                return
+            }
+        } else if ["translate", "prepareTranslation", "translationStatus", "openTranslationSettings"].contains(method) {
+            // Translation 框架 15.0 才引入。低版本上明确回一个可解释的错误，
+            // 而不是让前端收到「未知方法」——那会让界面显示成功能坏了。
+            if method == "openTranslationSettings" {
+                respond(id, true, NSNull())
+            } else {
+                respond(id, true, [
+                    "error": "unsupportedOS",
+                    "message": "本地翻译需要 macOS 15 或更高版本，当前系统不支持",
+                    "canDownload": false
+                ])
+            }
             return
         }
         switch method {

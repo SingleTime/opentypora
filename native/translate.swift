@@ -53,6 +53,10 @@ enum TranslationFailure: Error {
 }
 
 // MARK: - 翻译中心
+//  Translation.framework 是 macOS 15.0 才有的。整个类型因此限定 15+：
+//  低版本系统上它不参与任何调用，框架本身弱链接（见 build.sh 的 -weak_framework），
+//  所以 app 在 13/14 上照常启动，只是没有翻译这一项功能。
+@available(macOS 15.0, *)
 @MainActor
 final class TranslationService: ObservableObject {
     static let shared = TranslationService()
@@ -144,7 +148,11 @@ final class TranslationService: ObservableObject {
     /// 在 translationTask 的会话作用域内消费队列（会话只在闭包内有效）
     /// 会话常驻：队列空了就原地等待，避免每次翻译都重建会话、每次都让系统重新确认语言。
     func runSession(_ session: TranslationSession) async {
-        canRequestDownloads = session.canRequestDownloads
+        // canRequestDownloads 是 26.0 才加的；15–25 上保持默认 true（系统会在
+        // prepareTranslation 时自己弹下载确认，不需要这个开关）
+        if #available(macOS 26.0, *) {
+            canRequestDownloads = session.canRequestDownloads
+        }
         sessionAlive = true
         var idleSince = Date()
 
@@ -238,13 +246,17 @@ final class TranslationService: ObservableObject {
     }
 
     static func map(_ error: Error) -> TranslationFailure {
-        if TranslationError.notInstalled ~= error { return .notInstalled }
+        // notInstalled / alreadyCancelled 都是 26.0 才有的 case，15–25 上不可能出现，
+        // 直接跳过（低版本取消会落到下面的 NSUserCancelledError 判断）
+        if #available(macOS 26.0, *) {
+            if TranslationError.notInstalled ~= error { return .notInstalled }
+            if TranslationError.alreadyCancelled ~= error { return .cancelled }
+        }
         if TranslationError.unsupportedLanguagePairing ~= error { return .unsupportedPair("原文", "目标语言") }
         if TranslationError.unsupportedTargetLanguage ~= error { return .unsupportedPair("原文", "目标语言") }
         if TranslationError.unsupportedSourceLanguage ~= error { return .unsupportedPair("原文", "目标语言") }
         if TranslationError.unableToIdentifyLanguage ~= error { return .message("无法识别源语言") }
         if TranslationError.nothingToTranslate ~= error { return .nothingToTranslate }
-        if TranslationError.alreadyCancelled ~= error { return .cancelled }
         let ns = error as NSError
         if ns.domain == NSCocoaErrorDomain && ns.code == NSUserCancelledError { return .cancelled }
         return .message(error.localizedDescription)
@@ -252,6 +264,7 @@ final class TranslationService: ObservableObject {
 }
 
 // MARK: - 隐形宿主视图
+@available(macOS 15.0, *)
 private struct TranslationHost: View {
     @ObservedObject var service: TranslationService
 
@@ -265,6 +278,7 @@ private struct TranslationHost: View {
 }
 
 // MARK: - 桥接（由 main.swift 的 handle 调用）
+@available(macOS 15.0, *)
 extension TranslationService {
     /// 返回 true 表示这个方法由本模块接管
     func handle(id: String, method: String, params: [String: Any], controller: AppController) -> Bool {
